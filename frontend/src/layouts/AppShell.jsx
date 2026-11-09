@@ -218,3 +218,4 @@ export default function AppShell({ children, fullBleed = false }) {
     </div>
   );
 }
+

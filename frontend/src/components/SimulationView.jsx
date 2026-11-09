@@ -244,9 +244,12 @@ function StreamlineField({
     const particlePositions = useMemo(() => {
         const arr = new Float32Array(particleCount * 3);
         for (let i = 0; i < particleCount; i++) {
-            arr[i * 3] = -2.8 + Math.random() * 5.6;
-            arr[i * 3 + 1] = -1.1 + Math.random() * 2.2;
-            arr[i * 3 + 2] = (Math.random() - 0.5) * 2.2;
+            const s1 = ((i * 79 + 17) % 103) / 103;
+            const s2 = ((i * 131 + 31) % 97) / 97;
+            const s3 = ((i * 193 + 53) % 89) / 89;
+            arr[i * 3] = -2.8 + s1 * 5.6;
+            arr[i * 3 + 1] = -1.1 + s2 * 2.2;
+            arr[i * 3 + 2] = (s3 - 0.5) * 2.2;
         }
         return arr;
     }, [particleCount]);
@@ -607,3 +610,4 @@ export default function SimulationView({
         </div>
     );
 }
+

@@ -461,9 +461,12 @@ export function CutawayTurbofanMesh({
     const count = 180;
     const arr = new Float32Array(count * 3);
     for (let i = 0; i < count; i++) {
-      arr[i * 3] = (Math.random() - 0.5) * 4.8; // axial X
-      const r = 0.28 + Math.random() * 0.92;
-      const theta = Math.random() * Math.PI * 2;
+      const s1 = ((i * 73 + 19) % 101) / 101;
+      const s2 = ((i * 137 + 41) % 97) / 97;
+      const s3 = ((i * 199 + 11) % 89) / 89;
+      arr[i * 3] = (s1 - 0.5) * 4.8; // axial X
+      const r = 0.28 + s2 * 0.92;
+      const theta = s3 * Math.PI * 2;
       arr[i * 3 + 1] = r * Math.cos(theta);
       arr[i * 3 + 2] = r * Math.sin(theta);
     }

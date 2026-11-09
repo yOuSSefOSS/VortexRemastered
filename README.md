@@ -33,3 +33,4 @@ node server.js
 
 ## Architecture & Design Specification
 See [`DESIGN_AND_ARCHITECTURE.md`](./DESIGN_AND_ARCHITECTURE.md) for the complete codebase audit, design system tokens, WCAG contrast ratios, and security hardening blueprint.
+
