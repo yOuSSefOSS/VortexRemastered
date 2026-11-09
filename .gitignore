@@ -1,0 +1,37 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Python virtual environments & cache
+backend/venv/
+**/__pycache__/
+*.pyc
+backend/tmp_airfoil_*.dat
+
+# Build outputs
+dist/
+dist-ssr/
+build/
+out/
+
+# Environment variables (never commit real secrets or environment overrides)
+.env
+.env.*
+!.env.example
+**/frontend/.env
+**/frontend/.env.*
+!**/frontend/.env.example
+**/backend/.env
+**/backend/.env.*
+!**/backend/.env.example
+
+# Logs & OS artifacts
+logs/
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.gemini/
