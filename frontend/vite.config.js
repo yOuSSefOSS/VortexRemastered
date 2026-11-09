@@ -8,7 +8,17 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
     plugins: [tailwindcss(), react()],
+    cacheDir: path.resolve(__dirname, './.vite'),
+    server: {
+        host: true,
+        port: 5173,
+    },
+    preview: {
+        host: true,
+        port: 5173,
+    },
     resolve: {
+        preserveSymlinks: true,
         alias: { '@': path.resolve(__dirname, './src') },
     },
     build: {
