@@ -755,11 +755,28 @@ export default function Explorer() {
                 fontSize: '0.775rem',
                 color: 'var(--text-secondary)',
                 lineHeight: 1.6,
-                margin: '0 0 14px 0',
+                margin: '0 0 12px 0',
               }}
             >
-              {activeF16Part.engineering}
+              {activeF16Part.engineeringNote || activeF16Part.engineering}
             </p>
+
+            {activeF16Part.formula && (
+              <div
+                className="mono"
+                style={{
+                  fontSize: '11px',
+                  padding: '8px 10px',
+                  background: 'var(--bg-canvas)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: '4px',
+                  color: 'var(--accent-primary)',
+                  marginBottom: '12px',
+                }}
+              >
+                {activeF16Part.formula}
+              </div>
+            )}
 
             {/* Technical Specs Grid */}
             <div
@@ -771,7 +788,7 @@ export default function Explorer() {
                 paddingTop: '12px',
               }}
             >
-              {activeF16Part.specs.map((sp) => (
+              {(activeF16Part.specs || []).map((sp) => (
                 <div
                   key={sp.label}
                   style={{

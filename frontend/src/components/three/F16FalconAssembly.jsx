@@ -19,10 +19,12 @@ import * as THREE from 'three';
 export const F16_PARTS = [
     {
         id: 'radome',
+        index: '01',
         name: 'Radome & APG-68 fire-control radar',
         shortLabel: 'Radome & nose',
         category: 'Avionics & sensors',
         code: 'F16-01',
+        subsystemMap: 'avionics',
         basePos: [3.55, -0.04, 0],
         explodeOffset: [2.2, 0.35, 0],
         anchorOffset: [0.4, 0.15, 0],
@@ -31,14 +33,23 @@ export const F16_PARTS = [
             'Dielectric ogive nose cone housing the Westinghouse AN/APG-68 pulse-Doppler radar array and pitot-static air data probe.',
         engineeringNote:
             'Contoured to minimize transonic wave drag (CD,wave) while maintaining radar transparency across X-band frequencies.',
+        engineering:
+            'Contoured to minimize transonic wave drag (CD,wave) while maintaining radar transparency across X-band frequencies.',
         formula: 'θ_cone = arctan(d / 2L) ,  M_crit = 0.88',
+        specs: [
+            { label: 'Radar Array', value: 'AN/APG-68(V)9 X-Band Pulse-Doppler' },
+            { label: 'Fineness Ratio', value: 'L/D = 3.4 Sears-Haack Ogive' },
+            { label: 'Detection Range', value: '296 km Look-Down / Shoot-Down' },
+        ],
     },
     {
         id: 'cockpit',
+        index: '02',
         name: 'Cockpit section & polycarbonate canopy',
         shortLabel: 'Cockpit section',
         category: 'Crew station',
         code: 'F16-02',
+        subsystemMap: 'avionics',
         basePos: [1.75, 0.36, 0],
         explodeOffset: [0.85, 1.45, 0],
         anchorOffset: [0, 0.25, 0],
@@ -47,14 +58,23 @@ export const F16_PARTS = [
             'Frameless single-piece polycarbonate bubble canopy providing 360° upper-hemisphere visibility, paired with a 30° reclined ACES II ejection seat and side-stick controller.',
         engineeringNote:
             'The 30° seat tilt reduces head-to-heart hydrostatic blood column height h, raising pilot G-tolerance up to +9.0 Gz sustained.',
+        engineering:
+            'The 30° seat tilt reduces head-to-heart hydrostatic blood column height h, raising pilot G-tolerance up to +9.0 Gz sustained.',
         formula: 'ΔP_hydrostatic = ρ_blood · g · Gz · h · cos(30°)',
+        specs: [
+            { label: 'Canopy Glazing', value: '19 mm Gold-Indium-Tin Polycarbonate' },
+            { label: 'Ejection Seat', value: 'ACES II Zero-Zero (30° Reclined)' },
+            { label: 'Flight Control', value: 'Force-Sensing Side-Stick + Quad FBW' },
+        ],
     },
     {
         id: 'airframe',
+        index: '03',
         name: 'Central wing-body blended airframe',
         shortLabel: 'Central airframe',
         category: 'Primary structure',
         code: 'F16-03',
+        subsystemMap: 'fuselage',
         basePos: [0, 0, 0],
         explodeOffset: [0, 0.15, 0],
         anchorOffset: [0, 0.2, 0],
@@ -63,14 +83,23 @@ export const F16_PARTS = [
             'Blended wing-body (BWB) forebody strakes and multi-frame Al-2024/Ti-6Al-4V fuselage spine carrying wing bending moments and internal fuel.',
         engineeringNote:
             'Forebody strakes generate controlled leading-edge vortex lift at high angles of attack (α > 15°), energizing flow over the vertical tail.',
+        engineering:
+            'Forebody strakes generate controlled leading-edge vortex lift at high angles of attack (α > 15°), energizing flow over the vertical tail.',
         formula: 'CL,total = CL,potential + CL,vortex(α²)',
+        specs: [
+            { label: 'Alloy Composition', value: '78% Al-2024/7075 · 8% Ti-6Al-4V' },
+            { label: 'Design Load Limit', value: '+9.0 G / -3.0 G Full Internal Fuel' },
+            { label: 'Static Margin', value: '-2.0% MAC (Relaxed Static Stability)' },
+        ],
     },
     {
         id: 'intake',
+        index: '04',
         name: 'Ventral normal-shock inlet duct',
         shortLabel: 'Supersonic inlet',
         category: 'Air induction',
         code: 'F16-04',
+        subsystemMap: 'engines',
         basePos: [0.95, -0.46, 0],
         explodeOffset: [0.9, -1.25, 0],
         anchorOffset: [0.2, -0.15, 0],
@@ -79,14 +108,23 @@ export const F16_PARTS = [
             'Fixed-geometry ventral chin intake positioned beneath the forebody to prevent gun-gas ingestion and maintain clean airflow at high α.',
         engineeringNote:
             'Decelerates supersonic freestream flow (Mach 1.6–2.0) to subsonic Mach ~0.45 at the fan face through a normal shock and diffuser duct.',
+        engineering:
+            'Decelerates supersonic freestream flow (Mach 1.6–2.0) to subsonic Mach ~0.45 at the fan face through a normal shock and diffuser duct.',
         formula: 'P02 / P01 = f(M1) ,  ṁ = ρ · A_inlet · V',
+        specs: [
+            { label: 'Inlet Type', value: 'Fixed-Geometry Normal-Shock Pitot' },
+            { label: 'Pressure Recovery', value: '0.96 Subsonic / 0.89 at Mach 1.6' },
+            { label: 'Core Mass Flow', value: '122 kg/s Corrected Fan Airflow' },
+        ],
     },
     {
         id: 'port_wing',
+        index: '05',
         name: 'Port cropped-delta wing & flaperon',
         shortLabel: 'Port wing',
         category: 'Lifting surface',
         code: 'F16-05',
+        subsystemMap: 'wings',
         basePos: [-0.35, 0.02, -0.65],
         explodeOffset: [-0.15, 0.25, -1.85],
         anchorOffset: [0, 0.05, -1.2],
@@ -95,14 +133,23 @@ export const F16_PARTS = [
             '40° leading-edge sweep cropped-delta planform using a thin NACA 64A204 section (4% thickness-to-chord ratio) with automatic leading-edge maneuvering flaps.',
         engineeringNote:
             'Trailing-edge flaperons operate differentially for roll rate (up to 324°/s) and droop symmetrically as high-lift flaps during approach.',
+        engineering:
+            'Trailing-edge flaperons operate differentially for roll rate (up to 324°/s) and droop symmetrically as high-lift flaps during approach.',
         formula: 'AR = b² / S = 3.2 ,  Λ_LE = 40° ,  t/c = 0.04',
+        specs: [
+            { label: 'Airfoil Section', value: 'NACA 64A204 (t/c = 4.0%)' },
+            { label: 'Leading-Edge Sweep', value: '40° Cropped Delta · AR 3.2' },
+            { label: 'High-Lift Device', value: 'Auto-Scheduled LE Flap (-2° to +25°)' },
+        ],
     },
     {
         id: 'starboard_wing',
+        index: '06',
         name: 'Starboard cropped-delta wing & flaperon',
         shortLabel: 'Starboard wing',
         category: 'Lifting surface',
         code: 'F16-06',
+        subsystemMap: 'wings',
         basePos: [-0.35, 0.02, 0.65],
         explodeOffset: [-0.15, 0.25, 1.85],
         anchorOffset: [0, 0.05, 1.2],
@@ -111,14 +158,23 @@ export const F16_PARTS = [
             'Starboard primary lifting surface featuring integrated fuel bays, hardpoint pylons, and fly-by-wire flaperon actuators.',
         engineeringNote:
             'Relaxed static stability (negative subsonic static margin ~ -2% MAC) reduces trim drag and maximizes sustained turn rate.',
+        engineering:
+            'Relaxed static stability (negative subsonic static margin ~ -2% MAC) reduces trim drag and maximizes sustained turn rate.',
         formula: 'L = ½ · ρ · V² · S · CL(α, δ_LE, δ_flaperon)',
+        specs: [
+            { label: 'Reference Wing Area', value: '27.87 m² (300.0 ft²)' },
+            { label: 'Max Roll Rate', value: '324 deg/s via Differential Flaperons' },
+            { label: 'Hardpoints', value: '3 Under-Wing + 1 Wingtip Rail' },
+        ],
     },
     {
         id: 'vertical_tail',
+        index: '07',
         name: 'Vertical stabilizer & rudder assembly',
         shortLabel: 'Vertical stabilizer',
         category: 'Directional control',
         code: 'F16-07',
+        subsystemMap: 'tail',
         basePos: [-2.55, 0.85, 0],
         explodeOffset: [-1.45, 1.55, 0],
         anchorOffset: [-0.2, 0.55, 0],
@@ -127,14 +183,23 @@ export const F16_PARTS = [
             'High-sweep carbon-epoxy composite vertical tail fin with dorsal avionics fairing, rudder servo-actuator, and threat-warning receiver pod.',
         engineeringNote:
             'Provides directional weathercock stability (Cnβ > 0) and yaw authority for crosswind landings and high-α coordination.',
+        engineering:
+            'Provides directional weathercock stability (Cnβ > 0) and yaw authority for crosswind landings and high-α coordination.',
         formula: 'Cn = Cnβ · β + Cnδr · δr ,  VV = (Sv · lv) / (S · b)',
+        specs: [
+            { label: 'Fin Structure', value: 'Graphite-Epoxy Skins / Al Honeycomb' },
+            { label: 'Leading-Edge Sweep', value: '47.5° Biconvex Supersonic Section' },
+            { label: 'Rudder Authority', value: '±30° Electro-Hydrostatic Servo' },
+        ],
     },
     {
         id: 'port_stabilator',
+        index: '08',
         name: 'Port all-moving horizontal stabilator',
         shortLabel: 'Port stabilator',
         category: 'Pitch & roll trim',
         code: 'F16-08',
+        subsystemMap: 'tail',
         basePos: [-2.75, -0.08, -0.58],
         explodeOffset: [-1.55, -0.35, -1.45],
         anchorOffset: [-0.1, 0, -0.6],
@@ -143,14 +208,23 @@ export const F16_PARTS = [
             'All-moving pivoted horizontal tail surface providing primary longitudinal pitch control and differential roll augmentation (tailerons).',
         engineeringNote:
             'In supersonic flight where the aerodynamic center shifts aft from 25% to ~50% MAC, all-moving stabilators retain pitch authority without elevator blanking.',
+        engineering:
+            'In supersonic flight where the aerodynamic center shifts aft from 25% to ~50% MAC, all-moving stabilators retain pitch authority without elevator blanking.',
         formula: 'Cm,cg = Cm0 + Cmα · α + Cmδh · δh',
+        specs: [
+            { label: 'Actuation Type', value: 'All-Moving Titanium Pivot Spindle' },
+            { label: 'Deflection Range', value: '±25° Symmetric & Differential' },
+            { label: 'Dihedral Angle', value: '-10° Anhedral for Wake Clearance' },
+        ],
     },
     {
         id: 'starboard_stabilator',
+        index: '09',
         name: 'Starboard all-moving horizontal stabilator',
         shortLabel: 'Starboard stabilator',
         category: 'Pitch & roll trim',
         code: 'F16-09',
+        subsystemMap: 'tail',
         basePos: [-2.75, -0.08, 0.58],
         explodeOffset: [-1.55, -0.35, 1.45],
         anchorOffset: [-0.1, 0, 0.6],
@@ -159,14 +233,23 @@ export const F16_PARTS = [
             'Starboard composite honeycomb stabilator pivoted on a titanium spindle shaft and commanded at 400 Hz by the quad-redundant digital flight control computer.',
         engineeringNote:
             'Operates symmetrically with the port stabilator for pitch rate command and differentially for high-speed roll augmentation.',
+        engineering:
+            'Operates symmetrically with the port stabilator for pitch rate command and differentially for high-speed roll augmentation.',
         formula: 'δh,port / δh,stbd = δ_pitch ± δ_roll_taileron',
+        specs: [
+            { label: 'Control Loop Rate', value: '400 Hz Quad-Redundant Digital FBW' },
+            { label: 'Surface Skin', value: 'Carbon-Epoxy Laminate over Honeycomb' },
+            { label: 'Slew Rate', value: '60 deg/s Under Full Aerodynamic Load' },
+        ],
     },
     {
         id: 'nozzle',
+        index: '10',
         name: 'F110 afterburning turbofan & convergent-divergent nozzle',
         shortLabel: 'Exhaust / afterburner',
         category: 'Propulsion',
         code: 'F16-10',
+        subsystemMap: 'engines',
         basePos: [-2.95, 0.0, 0],
         explodeOffset: [-2.35, 0.05, 0],
         anchorOffset: [-0.35, 0, 0],
@@ -175,30 +258,48 @@ export const F16_PARTS = [
             'Variable-area convergent-divergent (C-D) iris exhaust nozzle mated to the GE F110-GE-129 afterburning turbofan (131 kN wet thrust).',
         engineeringNote:
             'Modulates throat area A* and exit area Ae to expand exhaust gases isentropically to supersonic Mach > 1.8 during full afterburner operation.',
+        engineering:
+            'Modulates throat area A* and exit area Ae to expand exhaust gases isentropically to supersonic Mach > 1.8 during full afterburner operation.',
         formula: 'FN = ṁ · (Ve − V0) + (Pe − P0) · Ae',
+        specs: [
+            { label: 'Powerplant', value: 'GE F110-GE-129 Augmented Turbofan' },
+            { label: 'Max Wet Thrust', value: '131.2 kN (29,500 lbf) w/ Afterburner' },
+            { label: 'Overall Pressure Ratio', value: '30.7 : 1 · Bypass Ratio 0.76 : 1' },
+        ],
     },
     {
         id: 'undercarriage',
+        index: '11',
         name: 'Tricycle hydro-pneumatic undercarriage',
         shortLabel: 'Undercarriage',
         category: 'Landing gear',
         code: 'F16-11',
+        subsystemMap: 'fuselage',
         basePos: [0.1, -0.78, 0],
         explodeOffset: [0, -1.65, 0],
         anchorOffset: [0, -0.25, 0],
         labelOffset: [-0.2, -1.05, -0.9],
         summary:
-            'steerable nose gear aft of the chin intake and wide-track fuselage-retracting main gear with oleo-pneumatic shock struts and anti-skid carbon brakes.',
+            'Steerable nose gear aft of the chin intake and wide-track fuselage-retracting main gear with oleo-pneumatic shock struts and anti-skid carbon brakes.',
         engineeringNote:
             'Absorbs vertical sink-rate kinetic energy (½·m·Vz²) during touchdown and retracts flush into the lower fuselage bays to eliminate parasite drag.',
+        engineering:
+            'Absorbs vertical sink-rate kinetic energy (½·m·Vz²) during touchdown and retracts flush into the lower fuselage bays to eliminate parasite drag.',
         formula: 'E_impact = ½ · m · V_sink² = ∫ F_oleo(s) ds',
+        specs: [
+            { label: 'Shock Absorption', value: 'Nitrogen-Oil Oleo-Pneumatic Struts' },
+            { label: 'Braking System', value: 'Multi-Disc Carbon w/ Digital Anti-Skid' },
+            { label: 'Max Gear Speed', value: '300 KIAS Extension / Retraction' },
+        ],
     },
     {
         id: 'stores',
+        index: '12',
         name: 'Wingtip AIM-9 rails & external fuel stores',
         shortLabel: 'External stores',
         category: 'Payload & stores',
         code: 'F16-12',
+        subsystemMap: 'wings',
         basePos: [-0.35, -0.22, 0],
         explodeOffset: [0.35, -1.05, 1.65],
         anchorOffset: [0, -0.1, 1.5],
@@ -207,7 +308,14 @@ export const F16_PARTS = [
             'Wingtip launch rails carrying AIM-9 Sidewinder air-to-air missiles and under-wing 370-gallon external drop tanks.',
         engineeringNote:
             'Mounting missiles on the wingtips acts like aerodynamic endplates/winglets, attenuating wingtip vortex roll-up and reducing induced drag CD,i.',
+        engineering:
+            'Mounting missiles on the wingtips acts like aerodynamic endplates/winglets, attenuating wingtip vortex roll-up and reducing induced drag CD,i.',
         formula: 'CD,i = CL² / (π · AR_eff · e)',
+        specs: [
+            { label: 'Wingtip Stations', value: '2 × LAU-129 Rails (AIM-9X / AIM-120)' },
+            { label: 'External Fuel', value: '2 × 370 US gal Under-Wing Drop Tanks' },
+            { label: 'Wingtip Vortex Effect', value: '-6% Induced Drag via Endplate Effect' },
+        ],
     },
 ];
 
@@ -944,16 +1052,28 @@ function F16SculptedModel({
 
 export default function F16FalconAssembly({
     explodeFactor = 0,
-    selectedPart = 'cockpit',
+    selectedPart,
+    selectedPartId,
     onSelectPart = () => {},
     flightMode = false,
     wireframe = false,
-    viewPreset = 'overview',
+    viewPreset,
+    cameraView,
     showLabels = true,
     rigState = {},
+    controlDeflections = {},
 }) {
     const controlsRef = useRef();
     const [hoveredPart, setHoveredPart] = React.useState(null);
+    const activeSelectedPart = selectedPartId || selectedPart || 'cockpit';
+    const activeViewPreset = cameraView || viewPreset || 'overview';
+    const mergedRigState = {
+        ...rigState,
+        aileronDeg: controlDeflections.aileron ?? rigState.aileronDeg ?? 0,
+        elevatorDeg: controlDeflections.elevator ?? rigState.elevatorDeg ?? 0,
+        rudderDeg: controlDeflections.rudder ?? rigState.rudderDeg ?? 0,
+        flapDeg: controlDeflections.flaps ?? rigState.flapDeg ?? 0,
+    };
 
     return (
         <div
@@ -981,14 +1101,14 @@ export default function F16FalconAssembly({
 
                 <F16SculptedModel
                     explodeFactor={explodeFactor}
-                    selectedPart={selectedPart}
+                    selectedPart={activeSelectedPart}
                     hoveredPart={hoveredPart}
                     onSelectPart={onSelectPart}
                     onHoverPart={setHoveredPart}
                     flightMode={flightMode}
                     wireframe={wireframe}
                     showLabels={showLabels}
-                    rigState={rigState}
+                    rigState={mergedRigState}
                 />
 
                 <OrbitControls
@@ -1000,8 +1120,8 @@ export default function F16FalconAssembly({
                 />
 
                 <SmoothViewCamera
-                    viewPreset={viewPreset}
-                    selectedPart={selectedPart}
+                    viewPreset={activeViewPreset}
+                    selectedPart={activeSelectedPart}
                     explodeFactor={explodeFactor}
                     controlsRef={controlsRef}
                 />
