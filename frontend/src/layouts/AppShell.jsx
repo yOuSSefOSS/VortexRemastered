@@ -1,221 +1,338 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
-  Compass,
-  Sliders,
-  Users,
-  ShieldCheck,
-  Sun,
-  Moon,
-  Lock,
-  UserCheck,
-  LogOut,
-  Menu,
-  X,
+    Compass,
+    Sliders,
+    Users,
+    ShieldCheck,
+    Sun,
+    Moon,
+    Lock,
+    Cpu,
+    Radio,
+    Menu,
+    X,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
 const NAV_ITEMS = [
-  { to: '/explore', label: 'Explore hangar', icon: Compass },
-  { to: '/lab', label: 'Simulation cockpit', icon: Sliders },
-  { to: '/events', label: 'Events & cohorts', icon: Users },
-  { to: '/admin', label: 'Host console', icon: ShieldCheck },
+    { to: '/explore', code: '01', label: '3D hangar', icon: Compass },
+    { to: '/lab', code: '02', label: 'Simulation cockpit', icon: Sliders },
+    { to: '/events', code: '03', label: 'Event cohorts', icon: Users },
+    { to: '/admin', code: '04', label: 'Host console', icon: ShieldCheck },
 ];
 
-export default function AppShell({ children, fullBleed = false }) {
-  const location = useLocation();
-  const navigate = useNavigate();
-  const [mobileOpen, setMobileOpen] = useState(false);
+export default function AppShell({ children }) {
+    const location = useLocation();
+    const navigate = useNavigate();
+    const [mobileOpen, setMobileOpen] = useState(false);
+    const [utcClock, setUtcClock] = useState('');
 
-  const {
-    theme,
-    toggleTheme,
-    session,
-    deviceFingerprint,
-    capabilities,
-    audienceTrack,
-    setAudienceTrack,
-    signOut,
-  } = useApp();
+    const {
+        theme,
+        toggleTheme,
+        session,
+        deviceFingerprint,
+        capabilities,
+        audienceTrack,
+        setAudienceTrack,
+    } = useApp();
 
-  return (
-    <div className="min-h-dvh flex flex-col bg-[var(--bg-canvas)] text-[var(--text-primary)]">
-      {/* 56px (14 * 4px) Unified Top Navigation Bar */}
-      <header className="h-14 flex-shrink-0 bg-[var(--bg-surface)] border-b border-[var(--border-default)] px-4 lg:px-6 flex items-center justify-between gap-4 z-40">
-        {/* Left: Brand & Primary Navigation */}
-        <div className="flex items-center gap-6">
-          <Link to="/" className="flex items-center gap-3 text-[var(--text-primary)] no-underline">
-            <img
-              src="/brand/logo-icon.jpg"
-              alt="Vortex-Gen"
-              className="w-8 h-8 rounded-[6px] object-cover border border-[var(--border-default)]"
-            />
-            <div className="flex flex-col">
-              <span className="text-[15px] leading-5 font-semibold tracking-[-0.01em]">
-                Vortex-Gen
-              </span>
-              <span className="text-[11px] leading-4 text-[var(--text-muted)]">
-                Aerospace education & simulation
-              </span>
-            </div>
-          </Link>
+    // Live ArcMarumo / Mission Control UTC Timecode
+    useEffect(() => {
+        const updateClock = () => {
+            const now = new Date();
+            const hh = String(now.getUTCHours()).padStart(2, '0');
+            const mm = String(now.getUTCMinutes()).padStart(2, '0');
+            const ss = String(now.getUTCSeconds()).padStart(2, '0');
+            setUtcClock(`${hh}:${mm}:${ss} UTC`);
+        };
+        updateClock();
+        const timer = setInterval(updateClock, 1000);
+        return () => clearInterval(timer);
+    }, []);
 
-          <nav className="hidden md:flex items-center gap-1">
-            {NAV_ITEMS.map((item) => {
-              const Icon = item.icon;
-              const isActive =
-                location.pathname === item.to || location.pathname.startsWith(`${item.to}/`);
-              return (
-                <Link
-                  key={item.to}
-                  to={item.to}
-                  className={`h-9 px-3 rounded-[6px] inline-flex items-center gap-2 text-[13px] leading-5 font-medium transition-colors no-underline ${
-                    isActive
-                      ? 'bg-[var(--accent-subtle)] text-[var(--accent-primary)]'
-                      : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-subtle)]'
-                  }`}
+    return (
+        <div
+            style={{
+                minHeight: '100dvh',
+                display: 'flex',
+                flexDirection: 'column',
+                background: 'var(--bg-canvas)',
+                color: 'var(--text-primary)',
+            }}
+        >
+            {/* 56px Tactical Instrument Header Bar (EnduroSat × ArcMarumo Hairline Grid) */}
+            <header
+                style={{
+                    height: '56px',
+                    flexShrink: 0,
+                    background: 'var(--bg-surface)',
+                    borderBottom: '1px solid var(--border-subtle)',
+                    display: 'flex',
+                    alignItems: 'stretch',
+                    justifyContent: 'space-between',
+                    position: 'sticky',
+                    top: 0,
+                    zIndex: 50,
+                }}
+            >
+                {/* Left Segment: Brand Identity + Live Telemetry Timecode */}
+                <div style={{ display: 'flex', alignItems: 'stretch' }}>
+                    <Link
+                        to="/"
+                        style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '12px',
+                            padding: '0 20px',
+                            borderRight: '1px solid var(--border-subtle)',
+                            textDecoration: 'none',
+                            color: 'var(--text-primary)',
+                        }}
+                    >
+                        <img
+                            src="/brand/logo-icon.jpg"
+                            alt="Vortex-Gen"
+                            style={{
+                                width: '28px',
+                                height: '28px',
+                                borderRadius: '2px',
+                                border: '1px solid var(--border-strong)',
+                                objectFit: 'cover',
+                            }}
+                        />
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <span
+                                style={{
+                                    fontFamily: 'var(--font-mono)',
+                                    fontSize: '0.8125rem',
+                                    fontWeight: 600,
+                                    letterSpacing: '0.03em',
+                                    lineHeight: 1.2,
+                                }}
+                            >
+                                VORTEX-GEN // SYS.02
+                            </span>
+                            <span
+                                style={{
+                                    fontFamily: 'var(--font-mono)',
+                                    fontSize: '0.625rem',
+                                    color: 'var(--text-secondary)',
+                                    lineHeight: 1.2,
+                                }}
+                            >
+                                ORBITAL &amp; AERO TELEMETRY
+                            </span>
+                        </div>
+                    </Link>
+
+                    {/* Live Timecode Cell (ArcMarumo Instrument Readout) */}
+                    <div
+                        className="hidden xl:flex"
+                        style={{
+                            alignItems: 'center',
+                            gap: '8px',
+                            padding: '0 16px',
+                            borderRight: '1px solid var(--border-subtle)',
+                            fontFamily: 'var(--font-mono)',
+                            fontSize: '0.6875rem',
+                            color: 'var(--text-secondary)',
+                        }}
+                    >
+                        <Radio size={12} style={{ color: 'var(--status-success)' }} />
+                        <span className="vg-tabular">{utcClock}</span>
+                        <span style={{ color: 'var(--text-tertiary)' }}>//</span>
+                        <span style={{ color: 'var(--accent-primary)' }}>WEBGL 60FPS</span>
+                    </div>
+
+                    {/* Numbered Tactical Navigation Cells */}
+                    <nav className="hidden md:flex" style={{ alignItems: 'stretch' }}>
+                        {NAV_ITEMS.map((item) => {
+                            const isActive =
+                                location.pathname === item.to ||
+                                location.pathname.startsWith(`${item.to}/`);
+                            return (
+                                <Link
+                                    key={item.to}
+                                    to={item.to}
+                                    style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '8px',
+                                        padding: '0 18px',
+                                        borderRight: '1px solid var(--border-subtle)',
+                                        borderBottom: isActive
+                                            ? '2px solid var(--accent-primary)'
+                                            : '2px solid transparent',
+                                        background: isActive
+                                            ? 'var(--accent-subtle)'
+                                            : 'transparent',
+                                        color: isActive
+                                            ? 'var(--text-primary)'
+                                            : 'var(--text-secondary)',
+                                        fontFamily: 'var(--font-mono)',
+                                        fontSize: '0.75rem',
+                                        fontWeight: isActive ? 600 : 500,
+                                        textDecoration: 'none',
+                                        transition: 'all 120ms ease',
+                                    }}
+                                >
+                                    <span
+                                        style={{
+                                            fontSize: '0.6875rem',
+                                            color: isActive
+                                                ? 'var(--accent-primary)'
+                                                : 'var(--text-tertiary)',
+                                        }}
+                                    >
+                                        [{item.code}]
+                                    </span>
+                                    <span>{item.label}</span>
+                                </Link>
+                            );
+                        })}
+                    </nav>
+                </div>
+
+                {/* Right Segment: Track Depth Switcher, Hardware Device Terminal & Polarity */}
+                <div style={{ display: 'flex', alignItems: 'stretch' }}>
+                    {/* Curriculum Depth Selector */}
+                    <div
+                        className="hidden sm:flex"
+                        style={{
+                            alignItems: 'center',
+                            padding: '0 14px',
+                            borderLeft: '1px solid var(--border-subtle)',
+                        }}
+                    >
+                        <div className="vg-segmented" role="group" aria-label="Curriculum depth">
+                            <button
+                                type="button"
+                                className={`vg-segmented-btn ${audienceTrack === 'foundation' ? 'active' : ''}`}
+                                onClick={() => setAudienceTrack('foundation')}
+                            >
+                                Foundation
+                            </button>
+                            <button
+                                type="button"
+                                className={`vg-segmented-btn ${audienceTrack === 'engineering' ? 'active' : ''}`}
+                                onClick={() => {
+                                    if (!capabilities.allowEngineeringDepth) {
+                                        navigate('/login?reason=engineering_track');
+                                    } else {
+                                        setAudienceTrack('engineering');
+                                    }
+                                }}
+                            >
+                                {!capabilities.allowEngineeringDepth && (
+                                    <Lock size={11} style={{ marginRight: '4px', verticalAlign: '-1px' }} />
+                                )}
+                                Engineering
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Device Identity & Tier Cell */}
+                    <Link
+                        to="/login"
+                        title={`Hardware Fingerprint: ${deviceFingerprint}`}
+                        className="hidden lg:flex"
+                        style={{
+                            alignItems: 'center',
+                            gap: '10px',
+                            padding: '0 16px',
+                            borderLeft: '1px solid var(--border-subtle)',
+                            textDecoration: 'none',
+                            color: 'var(--text-primary)',
+                            fontFamily: 'var(--font-mono)',
+                            fontSize: '0.75rem',
+                        }}
+                    >
+                        <Cpu size={14} style={{ color: 'var(--accent-primary)' }} />
+                        <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.2 }}>
+                            <span style={{ fontWeight: 600, fontSize: '0.75rem' }}>
+                                {session.display_name}
+                            </span>
+                            <span style={{ fontSize: '0.625rem', color: 'var(--text-secondary)' }}>
+                                {deviceFingerprint.slice(0, 12)} // {capabilities.label}
+                            </span>
+                        </div>
+                    </Link>
+
+                    {/* Polarity Switcher */}
+                    <button
+                        type="button"
+                        onClick={toggleTheme}
+                        aria-label={`Switch to ${theme === 'light' ? 'orbital dark' : 'blueprint light'} mode`}
+                        style={{
+                            width: '52px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            background: 'transparent',
+                            border: 'none',
+                            borderLeft: '1px solid var(--border-subtle)',
+                            color: 'var(--text-secondary)',
+                            cursor: 'pointer',
+                        }}
+                    >
+                        {theme === 'light' ? <Moon size={16} /> : <Sun size={16} />}
+                    </button>
+
+                    {/* Mobile Menu Button */}
+                    <button
+                        type="button"
+                        onClick={() => setMobileOpen((v) => !v)}
+                        className="flex md:hidden"
+                        style={{
+                            width: '52px',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            background: 'transparent',
+                            border: 'none',
+                            borderLeft: '1px solid var(--border-subtle)',
+                            color: 'var(--text-primary)',
+                            cursor: 'pointer',
+                        }}
+                    >
+                        {mobileOpen ? <X size={18} /> : <Menu size={18} />}
+                    </button>
+                </div>
+            </header>
+
+            {mobileOpen && (
+                <div
+                    style={{
+                        background: 'var(--bg-surface)',
+                        borderBottom: '1px solid var(--border-subtle)',
+                        padding: '12px 16px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '8px',
+                    }}
                 >
-                  <Icon size={16} strokeWidth={1.75} />
-                  <span>{item.label}</span>
-                </Link>
-              );
-            })}
-          </nav>
+                    {NAV_ITEMS.map((item) => (
+                        <Link
+                            key={item.to}
+                            to={item.to}
+                            onClick={() => setMobileOpen(false)}
+                            style={{
+                                padding: '8px 12px',
+                                fontFamily: 'var(--font-mono)',
+                                fontSize: '0.8125rem',
+                                color: 'var(--text-primary)',
+                                textDecoration: 'none',
+                                border: '1px solid var(--border-subtle)',
+                            }}
+                        >
+                            [{item.code}] {item.label}
+                        </Link>
+                    ))}
+                </div>
+            )}
+
+            <main style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>{children}</main>
         </div>
-
-        {/* Right: Audience Depth Switcher, Session Badge & Theme Toggle */}
-        <div className="flex items-center gap-3">
-          {/* Curriculum Depth Switcher: Foundation (K-12) vs Engineering (University) */}
-          <div
-            className="hidden sm:flex items-center p-1 bg-[var(--bg-subtle)] border border-[var(--border-default)] rounded-[8px]"
-            role="group"
-            aria-label="Curriculum depth"
-          >
-            <button
-              type="button"
-              onClick={() => setAudienceTrack('foundation')}
-              className={`h-7 px-3 rounded-[6px] text-[12px] leading-4 font-medium transition-colors cursor-pointer ${
-                audienceTrack === 'foundation'
-                  ? 'bg-[var(--bg-surface)] text-[var(--text-primary)] border border-[var(--border-default)]'
-                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-              }`}
-            >
-              Foundation track
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                if (!capabilities.allowEngineeringDepth) {
-                  navigate('/login?reason=engineering_track');
-                } else {
-                  setAudienceTrack('engineering');
-                }
-              }}
-              title={
-                capabilities.allowEngineeringDepth
-                  ? 'Switch to university engineering derivations'
-                  : 'Enter an event code or request host unlock for engineering depth'
-              }
-              className={`h-7 px-3 rounded-[6px] inline-flex items-center gap-1.5 text-[12px] leading-4 font-medium transition-colors cursor-pointer ${
-                audienceTrack === 'engineering'
-                  ? 'bg-[var(--bg-surface)] text-[var(--text-primary)] border border-[var(--border-default)]'
-                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-              }`}
-            >
-              {!capabilities.allowEngineeringDepth && <Lock size={12} />}
-              <span>Engineering track</span>
-            </button>
-          </div>
-
-          {/* Active Session / Device Identity Badge */}
-          <Link
-            to="/login"
-            title={`Device ID: ${deviceFingerprint} — Click to switch session or enter event code`}
-            className="hidden lg:inline-flex items-center gap-2 h-9 px-3 rounded-[6px] bg-[var(--bg-subtle)] border border-[var(--border-default)] hover:border-[var(--border-strong)] no-underline transition-colors"
-          >
-            <UserCheck size={15} className="text-[var(--accent-primary)]" />
-            <span className="text-[13px] leading-5 font-medium text-[var(--text-primary)] max-w-[140px] truncate">
-              {session.display_name}
-            </span>
-            <span
-              className={`vg-badge ${
-                session.access_tier === 'vip_full'
-                  ? 'vg-badge-success'
-                  : session.access_tier === 'pro_student' || session.access_tier === 'event_cohort'
-                  ? 'vg-badge-accent'
-                  : ''
-              }`}
-            >
-              {capabilities.label}
-            </span>
-          </Link>
-
-          {/* Theme Polarity Toggle */}
-          <button
-            type="button"
-            onClick={toggleTheme}
-            aria-label="Toggle color theme"
-            title={theme === 'light' ? 'Switch to dark interface' : 'Switch to daylight interface'}
-            className="w-9 h-9 rounded-[6px] inline-flex items-center justify-center bg-[var(--bg-surface)] border border-[var(--border-default)] hover:bg-[var(--bg-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer transition-colors"
-          >
-            {theme === 'light' ? <Moon size={16} /> : <Sun size={16} />}
-          </button>
-
-          {session.is_initialized && (
-            <button
-              type="button"
-              onClick={signOut}
-              title="Reset guest or user session"
-              className="hidden md:inline-flex w-9 h-9 rounded-[6px] items-center justify-center bg-[var(--bg-surface)] border border-[var(--border-default)] hover:bg-[var(--bg-subtle)] text-[var(--text-secondary)] hover:text-[var(--status-danger)] cursor-pointer transition-colors"
-            >
-              <LogOut size={15} />
-            </button>
-          )}
-
-          {/* Mobile Drawer Button */}
-          <button
-            type="button"
-            onClick={() => setMobileOpen((v) => !v)}
-            className="md:hidden w-9 h-9 rounded-[6px] inline-flex items-center justify-center border border-[var(--border-default)] text-[var(--text-primary)]"
-          >
-            {mobileOpen ? <X size={18} /> : <Menu size={18} />}
-          </button>
-        </div>
-      </header>
-
-      {/* Mobile Navigation Drawer */}
-      {mobileOpen && (
-        <div className="md:hidden bg-[var(--bg-surface)] border-b border-[var(--border-default)] p-4 flex flex-col gap-2 z-30">
-          {NAV_ITEMS.map((item) => {
-            const Icon = item.icon;
-            return (
-              <Link
-                key={item.to}
-                to={item.to}
-                onClick={() => setMobileOpen(false)}
-                className="h-10 px-3 rounded-[6px] flex items-center gap-3 text-[14px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-subtle)] no-underline"
-              >
-                <Icon size={16} />
-                <span>{item.label}</span>
-              </Link>
-            );
-          })}
-          <Link
-            to="/login"
-            onClick={() => setMobileOpen(false)}
-            className="h-10 px-3 rounded-[6px] flex items-center justify-between bg-[var(--bg-subtle)] text-[13px] font-medium text-[var(--text-primary)] no-underline mt-2"
-          >
-            <span>{session.display_name}</span>
-            <span className="vg-badge vg-badge-accent">{capabilities.label}</span>
-          </Link>
-        </div>
-      )}
-
-      {/* Main Content Container */}
-      <main className={`flex-1 flex flex-col min-h-0 ${fullBleed ? 'overflow-hidden' : ''}`}>
-        {children}
-      </main>
-    </div>
-  );
+    );
 }
-

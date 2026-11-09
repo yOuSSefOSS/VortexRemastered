@@ -13,6 +13,8 @@ dist/
 dist-ssr/
 build/
 out/
+.vite/
+**/.vite/
 
 # Environment variables (never commit real secrets or environment overrides)
 .env

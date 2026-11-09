@@ -18,19 +18,19 @@ const AppContext = createContext(null);
 export function AppProvider({ children }) {
   const deviceFingerprint = useMemo(() => getOrCreateDeviceFingerprint(), []);
 
-  // Theme polarity: Default Light mode per Section 5.1 (3D viewports stay anchored in #0F1217)
+  // Theme polarity: Default Orbital Dark mode (EnduroSat × ArcMarumo aesthetic)
   const [theme, setTheme] = useState(() => {
     try {
-      return localStorage.getItem('vg_theme_v2') || 'light';
+      return localStorage.getItem('vg_theme_v3') || 'dark';
     } catch (_) {
-      return 'light';
+      return 'dark';
     }
   });
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
     try {
-      localStorage.setItem('vg_theme_v2', theme);
+      localStorage.setItem('vg_theme_v3', theme);
     } catch (_) {}
   }, [theme]);
 

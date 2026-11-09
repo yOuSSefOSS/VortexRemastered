@@ -102,6 +102,7 @@ export function ArticulatedAircraftMesh({
   onSelectZone,
   onHoverZone,
   cutaway = false,
+  wireframe = false,
   flapAngle = 0,
   slatExt = 0,
   aileronDeflection = 0,
@@ -131,6 +132,16 @@ export function ArticulatedAircraftMesh({
 
   const zoneMaterialProps = (zone, baseColor = '#D5DCE4', metalness = 0.45, roughness = 0.35) => {
     const active = isZoneActive(zone);
+    if (wireframe) {
+      return {
+        color: active ? '#93C5FD' : '#3B82F6',
+        emissive: active ? '#2563EB' : '#1E3A8A',
+        emissiveIntensity: active ? 0.65 : 0.28,
+        wireframe: true,
+        metalness: 0.2,
+        roughness: 0.4,
+      };
+    }
     return {
       color: active ? '#7AA5FF' : baseColor,
       emissive: active ? '#1F5BD8' : '#000000',
@@ -656,6 +667,9 @@ export default function AircraftViewer3D({
   aircraftState = {},
   rigState = {},
   showVectors = true,
+  wireframe = false,
+  autoRotate = false,
+  autoRotateSpeed = 0.55,
 }) {
   const controlsRef = useRef();
   const [internalHover, setInternalHover] = React.useState(null);
@@ -678,6 +692,7 @@ export default function AircraftViewer3D({
       rigState.cutawayRatio !== undefined
         ? rigState.cutawayRatio > 0.15
         : (aircraftState.cutaway ?? false),
+    wireframe: wireframe || Boolean(rigState.wireframe),
     flapAngle: rigState.flapDeg ?? aircraftState.flapAngle ?? 0,
     slatExt:
       rigState.slatDeg !== undefined
@@ -699,21 +714,21 @@ export default function AircraftViewer3D({
 
   return (
     <div
-      style={{ width: '100%', height: '100%', position: 'relative', background: '#0F1217', overflow: 'hidden' }}
-      className="relative w-full h-full bg-[#0F1217] select-none overflow-hidden"
+      style={{ width: '100%', height: '100%', position: 'relative', background: '#07090E', overflow: 'hidden' }}
+      className="relative w-full h-full bg-[#07090E] select-none overflow-hidden"
     >
       <Canvas
         dpr={[1, 1.5]}
         camera={{ position: effectiveCamPos, fov: 42, near: 0.1, far: 100 }}
         gl={{ powerPreference: 'high-performance', antialias: true }}
       >
-        <color attach="background" args={['#0F1217']} />
+        <color attach="background" args={['#07090E']} />
         <ambientLight intensity={0.85} />
         <directionalLight position={[8, 12, 8]} intensity={1.45} />
-        <directionalLight position={[-8, -4, -6]} intensity={0.55} color="#7AA5FF" />
+        <directionalLight position={[-8, -4, -6]} intensity={0.55} color="#4F8BFF" />
 
-        {/* Subtle Reference Hangar Floor Grid */}
-        <gridHelper args={[24, 24, '#292F38', '#171B22']} position={[0, -1.85, 0]} />
+        {/* Orbital Reference CAD Floor Grid */}
+        <gridHelper args={[28, 28, '#1E293B', '#0F172A']} position={[0, -1.85, 0]} />
 
         {isEngineView ? (
           <CutawayTurbofanMesh
@@ -729,6 +744,7 @@ export default function AircraftViewer3D({
             onSelectZone={handleSelect}
             onHoverZone={handleHover}
             cutaway={mergedState.cutaway}
+            wireframe={mergedState.wireframe}
             flapAngle={mergedState.flapAngle}
             slatExt={mergedState.slatExt}
             aileronDeflection={mergedState.aileronDeflection}
@@ -751,6 +767,8 @@ export default function AircraftViewer3D({
           dampingFactor={0.08}
           minDistance={2.0}
           maxDistance={16.0}
+          autoRotate={autoRotate}
+          autoRotateSpeed={autoRotateSpeed}
         />
 
         <SmoothCameraRig

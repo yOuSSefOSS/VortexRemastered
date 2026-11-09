@@ -1,22 +1,77 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
     Compass,
     Sliders,
-    Calendar,
-    Shield,
+    ArrowUpRight,
     ArrowRight,
+    Cpu,
+    Crosshair,
     Layers,
     Wind,
     Fan,
-    GraduationCap,
-    BookOpen,
-    CheckCircle2,
-    Box,
-    FileText,
+    Shield,
+    Eye,
+    Terminal,
+    Activity,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import AircraftViewer3D from '../components/AircraftViewer3D';
 import { HANGAR_SUBSYSTEMS } from '../data/hangarCurriculum';
+import { computeISAAtmosphere, computeCabinPressurization } from '../domain/isaAtmosphere';
+import {
+    computeWingPlanformAero,
+    computeLongitudinalStability,
+    computeTurbofanPerformance,
+} from '../domain/flightMechanics';
+
+const MISSION_PROFILES = [
+    {
+        id: 'transonic_cruise',
+        code: 'MSN-01',
+        title: 'Transonic transport cruise',
+        subtitle: 'Mach 0.78 // FL350 (10,668 m) // Sweep 25°',
+        altitudeMeters: 10668,
+        airspeedMs: 231,
+        camber: 2,
+        thickness: 12,
+        aoa: 3.5,
+        flapDeg: 0,
+        slatDeg: 0,
+        throttlePct: 82,
+        station: 'aircraft',
+    },
+    {
+        id: 'high_lift_approach',
+        code: 'MSN-02',
+        title: 'High-lift approach & Fowler deployment',
+        subtitle: 'Mach 0.22 // 1,500 m // Flaps 30° + Slats 20°',
+        altitudeMeters: 1500,
+        airspeedMs: 72,
+        camber: 4,
+        thickness: 12,
+        aoa: 7.5,
+        flapDeg: 30,
+        slatDeg: 20,
+        throttlePct: 58,
+        station: 'windtunnel',
+    },
+    {
+        id: 'turbofan_testbed',
+        code: 'MSN-03',
+        title: 'High-bypass turbofan thermodynamic rig',
+        subtitle: 'BPR 9.5:1 // N1 94% // Stratospheric ISA',
+        altitudeMeters: 11500,
+        airspeedMs: 240,
+        camber: 2,
+        thickness: 12,
+        aoa: 4.0,
+        flapDeg: 0,
+        slatDeg: 0,
+        throttlePct: 94,
+        station: 'propulsion',
+    },
+];
 
 export default function LandingPage() {
     const navigate = useNavigate();
@@ -26,327 +81,646 @@ export default function LandingPage() {
         tierPolicy,
         curriculumDepth,
         setCurriculumDepth,
+        setActiveAirfoil,
+        setFlightConditions,
     } = useApp();
+
+    // Interactive 3D CAD state on the Landing Page (EnduroSat × ArcMarumo)
+    const [activeSubIdx, setActiveSubIdx] = useState(1); // Default 02 // Wings
+    const [subject3D, setSubject3D] = useState('aircraft'); // 'aircraft' | 'engine'
+    const [wireframeMode, setWireframeMode] = useState(true); // EnduroSat CAD wireframe default
+    const [cutawayMode, setCutawayMode] = useState(true);
+    const [selectedMissionId, setSelectedMissionId] = useState('transonic_cruise');
+
+    const activeSubsystem = HANGAR_SUBSYSTEMS[activeSubIdx] || HANGAR_SUBSYSTEMS[0];
+    const activeMission =
+        MISSION_PROFILES.find((m) => m.id === selectedMissionId) || MISSION_PROFILES[0];
+
+    // ArcMarumo Keyboard Deck Navigation ([1]-[5] subsystems, [W] Wireframe, [C] Cutaway, [E] Engine)
+    useEffect(() => {
+        const onKeyDown = (e) => {
+            const tag = e.target?.tagName;
+            if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+            if (e.key >= '1' && e.key <= '5') {
+                const idx = parseInt(e.key, 10) - 1;
+                setActiveSubIdx(idx);
+                setSubject3D(idx === 4 ? 'engine' : 'aircraft');
+            } else if (e.key === 'w' || e.key === 'W') {
+                setWireframeMode((v) => !v);
+            } else if (e.key === 'c' || e.key === 'C') {
+                setCutawayMode((v) => !v);
+            } else if (e.key === 'e' || e.key === 'E') {
+                setSubject3D((s) => (s === 'aircraft' ? 'engine' : 'aircraft'));
+            }
+        };
+        window.addEventListener('keydown', onKeyDown);
+        return () => window.removeEventListener('keydown', onKeyDown);
+    }, []);
+
+    // Live physics telemetry for the selected mission profile
+    const isa = computeISAAtmosphere(activeMission.altitudeMeters);
+    const cabin = computeCabinPressurization(activeMission.altitudeMeters);
+    const wingAero = computeWingPlanformAero({
+        sweepDeg: 25,
+        mach: activeMission.airspeedMs / isa.speedOfSoundMs,
+        altitudeMeters: activeMission.altitudeMeters,
+        aoaDeg: activeMission.aoa,
+        flapDeg: activeMission.flapDeg,
+        slatDeg: activeMission.slatDeg,
+    });
+    const stability = computeLongitudinalStability({
+        cgPercentMac: 25,
+        tailVolumeRatio: 0.9,
+        aoaDeg: activeMission.aoa,
+    });
+    const enginePerf = computeTurbofanPerformance({
+        throttlePct: activeMission.throttlePct,
+        bypassRatio: 9.0,
+        mach: activeMission.airspeedMs / isa.speedOfSoundMs,
+        altitudeMeters: activeMission.altitudeMeters,
+    });
+
+    const handleLaunchMission = (mission) => {
+        setFlightConditions({
+            altitudeMeters: mission.altitudeMeters,
+            airspeedMs: mission.airspeedMs,
+            chordMeters: 1.6,
+        });
+        setActiveAirfoil({
+            camber: mission.camber,
+            maxCamberLoc: 4,
+            thickness: mission.thickness,
+            aoa: mission.aoa,
+        });
+        navigate(`/lab?station=${mission.station}`);
+    };
 
     return (
         <div
+            className="vg-cad-grid"
             style={{
-                background: 'var(--bg-canvas)',
+                backgroundColor: 'var(--bg-canvas)',
                 color: 'var(--text-primary)',
                 minHeight: 'calc(100vh - 56px)',
                 display: 'flex',
                 flexDirection: 'column',
             }}
         >
-            {/* Hero Section — Editorial Daylight Layout inspired by reference */}
+            {/* =====================================================================
+                SECTION 01 // FULL-VIEWPORT 3D WEBGL MISSION DECK (ENDUROSAT × ARCMARUMO)
+               ===================================================================== */}
             <section
                 style={{
-                    background: 'var(--bg-surface)',
+                    position: 'relative',
+                    minHeight: 'calc(100vh - 56px)',
                     borderBottom: '1px solid var(--border-subtle)',
-                    padding: '64px 24px 56px',
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))',
+                    overflow: 'hidden',
                 }}
             >
+                {/* Left Architectural Column: Mission Brief, Subsystem Telemetry & Command Triggers */}
                 <div
-                    className="vg-container"
                     style={{
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))',
-                        gap: '48px',
-                        alignItems: 'center',
+                        position: 'relative',
+                        zIndex: 10,
+                        borderRight: '1px solid var(--border-subtle)',
+                        background:
+                            'linear-gradient(90deg, rgba(7,9,14,0.95) 0%, rgba(7,9,14,0.82) 100%)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between',
                     }}
                 >
-                    {/* Left Column: Editorial Headline & Primary Actions */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                    {/* Top Telemetry Strip */}
+                    <div
+                        style={{
+                            padding: '14px 24px',
+                            borderBottom: '1px solid var(--border-subtle)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            gap: '12px',
+                            fontFamily: 'var(--font-mono)',
+                            fontSize: '0.6875rem',
+                            color: 'var(--text-secondary)',
+                        }}
+                    >
+                        <span>SEC.01 // ORBITAL &amp; ATMOSPHERIC FLIGHT MECHANICS</span>
+                        <span style={{ color: 'var(--accent-primary)' }}>
+                            [ISA {Math.round(activeMission.altitudeMeters)}M // M{' '}
+                            {(activeMission.airspeedMs / isa.speedOfSoundMs).toFixed(2)}]
+                        </span>
+                    </div>
+
+                    {/* Center Hero Typography & Active 3D Module Readout */}
+                    <div
+                        style={{
+                            padding: '36px 28px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '24px',
+                        }}
+                    >
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                             <span className="vg-badge vg-badge-accent">
-                                Aerospace education & digital wind tunnel
+                                <Crosshair size={11} />
+                                {activeSubsystem.code} // {activeSubsystem.category}
                             </span>
                             <span className="vg-badge">
-                                Active tier: {tierPolicy?.label || 'Guest preview'}
+                                TIER: {tierPolicy?.label || 'Guest preview'}
                             </span>
                         </div>
 
                         <h1
                             style={{
-                                fontSize: 'clamp(2rem, 3.5vw, 2.75rem)',
+                                fontSize: 'clamp(2.1rem, 3.8vw, 3.35rem)',
                                 fontWeight: 600,
-                                lineHeight: 1.15,
-                                letterSpacing: '-0.025em',
+                                lineHeight: 1.08,
+                                letterSpacing: '-0.03em',
                                 margin: 0,
                                 color: 'var(--text-primary)',
                             }}
                         >
-                            Interactive 3D flight mechanics, propulsion, and airfoil simulation.
+                            Precision 3D flight dynamics, propulsion &amp; digital CFD wind tunnel.
                         </h1>
 
                         <p
                             style={{
-                                fontSize: '1.0625rem',
+                                fontSize: '0.9375rem',
                                 color: 'var(--text-secondary)',
                                 lineHeight: 1.65,
                                 margin: 0,
-                                maxWidth: '58ch',
+                                maxWidth: '56ch',
                             }}
                         >
-                            Inspect a full-scale articulated aircraft and cutaway high-bypass turbofan in the 3D hangar, study foundation or university-grade aerodynamic theory, and test NACA wing profiles in a real-time CFD wind tunnel.
+                            Interact directly with the full-scale 3D aircraft CAD assembly and cutaway high-bypass turbofan on the right. Select any structural subsystem via keys{' '}
+                            <kbd className="vg-kbd">1</kbd>–<kbd className="vg-kbd">5</kbd> or launch the 3-station simulation cockpit.
                         </p>
 
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', paddingTop: '4px' }}>
-                            <Link to="/explore" className="vg-btn vg-btn-primary vg-btn-lg">
-                                <Compass size={18} />
-                                Enter 3D hangar
-                                <ArrowRight size={16} />
-                            </Link>
-                            <Link to="/lab" className="vg-btn vg-btn-secondary vg-btn-lg">
-                                <Sliders size={18} />
-                                Open 3D simulation cockpit
-                            </Link>
-                            <Link to="/events" className="vg-btn vg-btn-ghost vg-btn-lg">
-                                <Calendar size={18} />
-                                Join event cohort
-                            </Link>
-                        </div>
-
-                        {/* Device & Track Status Strip */}
+                        {/* Active Subsystem Telemetry Box (Updates live as user clicks 1-5) */}
                         <div
+                            className="vg-card"
                             style={{
+                                padding: '16px 20px',
+                                background: 'rgba(12, 16, 23, 0.92)',
                                 display: 'flex',
-                                alignItems: 'center',
-                                gap: '16px',
-                                paddingTop: '12px',
-                                borderTop: '1px solid var(--border-subtle)',
-                                fontSize: '0.8125rem',
-                                color: 'var(--text-secondary)',
-                                flexWrap: 'wrap',
+                                flexDirection: 'column',
+                                gap: '12px',
                             }}
                         >
-                            <span>
-                                Session: <strong style={{ color: 'var(--text-primary)' }}>{displayName || 'Guest'}</strong>
-                            </span>
-                            <span>
-                                Device ID:{' '}
-                                <code
-                                    style={{
-                                        fontFamily: 'var(--font-mono)',
-                                        color: 'var(--accent-primary)',
-                                        fontWeight: 500,
-                                    }}
-                                >
-                                    {deviceFingerprint}
-                                </code>
-                            </span>
-                            <Link
-                                to="/login"
-                                style={{
-                                    color: 'var(--accent-primary)',
-                                    textDecoration: 'none',
-                                    fontWeight: 500,
-                                }}
-                            >
-                                Switch session or enter event code →
-                            </Link>
-                        </div>
-                    </div>
-
-                    {/* Right Column: Framed Product Preview Card */}
-                    <div
-                        className="vg-card"
-                        style={{
-                            padding: '16px',
-                            background: 'var(--bg-canvas)',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: '12px',
-                        }}
-                    >
-                        <div
-                            style={{
-                                borderRadius: 'var(--radius-sm)',
-                                overflow: 'hidden',
-                                border: '1px solid var(--border-subtle)',
-                                background: '#0F1217',
-                                position: 'relative',
-                                aspectRatio: '16 / 9',
-                            }}
-                        >
-                            <img
-                                src="/brand/logo-banner.jpg"
-                                alt="Vortex-Gen aerospace engineering platform"
-                                style={{
-                                    width: '100%',
-                                    height: '100%',
-                                    objectFit: 'cover',
-                                    display: 'block',
-                                }}
-                            />
                             <div
                                 style={{
-                                    position: 'absolute',
-                                    bottom: '12px',
-                                    left: '12px',
-                                    right: '12px',
-                                    padding: '10px 14px',
-                                    background: 'rgba(15, 18, 23, 0.86)',
-                                    backdropFilter: 'blur(8px)',
-                                    borderRadius: 'var(--radius-xs)',
-                                    border: '1px solid rgba(148, 163, 184, 0.22)',
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'space-between',
-                                    color: '#F8FAFC',
-                                    fontSize: '0.75rem',
+                                    borderBottom: '1px solid var(--border-subtle)',
+                                    paddingBottom: '8px',
                                 }}
                             >
-                                <span>3D hangar + NeuralFoil CFD solver + ISA atmosphere</span>
-                                <span className="vg-tabular" style={{ color: '#93C5FD', fontWeight: 600 }}>
-                                    60 FPS WebGL
-                                </span>
+                                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', fontWeight: 600 }}>
+                                    ACTIVE RIG // {activeSubsystem.name}
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => navigate(`/explore/${activeSubsystem.id}`)}
+                                    className="vg-btn vg-btn-secondary vg-btn-sm"
+                                >
+                                    Open module drawer
+                                    <ArrowUpRight size={13} />
+                                </button>
                             </div>
+
+                            <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.55 }}>
+                                {curriculumDepth === 'engineering'
+                                    ? activeSubsystem.engineeringContent?.summary
+                                    : activeSubsystem.foundationContent?.summary}
+                            </p>
+
+                            {/* Governing Formula Bar */}
+                            {activeSubsystem.engineeringContent?.equations?.[0] && (
+                                <div
+                                    style={{
+                                        padding: '8px 12px',
+                                        background: 'var(--bg-canvas)',
+                                        border: '1px solid var(--border-subtle)',
+                                        fontFamily: 'var(--font-mono)',
+                                        fontSize: '0.75rem',
+                                        color: 'var(--accent-primary)',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'space-between',
+                                        gap: '12px',
+                                    }}
+                                >
+                                    <span>{activeSubsystem.engineeringContent.equations[0].formula}</span>
+                                    <span style={{ color: 'var(--text-tertiary)', fontSize: '0.6875rem' }}>
+                                        [EQ.01]
+                                    </span>
+                                </div>
+                            )}
                         </div>
 
-                        {/* Concentric Inner Telemetry Summary Row */}
-                        <div
-                            style={{
-                                display: 'grid',
-                                gridTemplateColumns: 'repeat(3, 1fr)',
-                                gap: '8px',
-                            }}
-                        >
-                            <div className="vg-card-nested" style={{ padding: '12px' }}>
-                                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                                    3D subsystems
-                                </div>
-                                <div className="vg-tabular" style={{ fontSize: '1.125rem', fontWeight: 600 }}>
-                                    5 interactive rigs
-                                </div>
-                                <div style={{ fontSize: '0.6875rem', color: 'var(--text-tertiary)' }}>
-                                    Airframe + turbofan cutaway
-                                </div>
-                            </div>
-                            <div className="vg-card-nested" style={{ padding: '12px' }}>
-                                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                                    Simulation stations
-                                </div>
-                                <div className="vg-tabular" style={{ fontSize: '1.125rem', fontWeight: 600 }}>
-                                    3 unified modes
-                                </div>
-                                <div style={{ fontSize: '0.6875rem', color: 'var(--text-tertiary)' }}>
-                                    Stability, CFD, propulsion
-                                </div>
-                            </div>
-                            <div className="vg-card-nested" style={{ padding: '12px' }}>
-                                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                                    Hardware export
-                                </div>
-                                <div className="vg-tabular" style={{ fontSize: '1.125rem', fontWeight: 600 }}>
-                                    STL + PDF
-                                </div>
-                                <div style={{ fontSize: '0.6875rem', color: 'var(--text-tertiary)' }}>
-                                    Shoelace volume & Re math
-                                </div>
-                            </div>
+                        {/* Primary Tactical Command Buttons */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                            <Link to="/explore" className="vg-btn vg-btn-primary vg-btn-lg">
+                                <Compass size={16} />
+                                ENTER 3D HANGAR
+                                <ArrowRight size={15} />
+                            </Link>
+                            <Link to="/lab" className="vg-btn vg-btn-secondary vg-btn-lg">
+                                <Sliders size={16} />
+                                LAUNCH SIMULATION COCKPIT
+                            </Link>
+                            <Link to="/events" className="vg-btn vg-btn-ghost vg-btn-lg">
+                                JOIN COHORT [{deviceFingerprint.slice(0, 8)}]
+                            </Link>
                         </div>
                     </div>
-                </div>
-            </section>
 
-            {/* 4-Pillar Feature Strip (Matched to Reference Card Row, Equal 24px Padding) */}
-            <section style={{ padding: '48px 24px 24px' }}>
-                <div className="vg-container">
+                    {/* Bottom 4-Cell Live ISA & Aerodynamic Readout Strip */}
                     <div
                         style={{
+                            borderTop: '1px solid var(--border-subtle)',
                             display: 'grid',
-                            gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-                            gap: '16px',
+                            gridTemplateColumns: 'repeat(4, 1fr)',
                         }}
                     >
                         {[
                             {
-                                icon: Compass,
-                                title: '3D hangar explorer',
-                                body: 'Click directly on fuselage frames, swept wings, NACA airfoil ribs, empennage surfaces, or the cutaway turbofan engine.',
-                                actionLabel: 'Inspect 3D models',
-                                to: '/explore',
+                                label: '3D LIFT / DRAG',
+                                val: `L/D ${wingAero.ld3D.toFixed(1)}`,
+                                sub: `CL ${wingAero.cl3D.toFixed(2)} // CD ${wingAero.cdTotal.toFixed(3)}`,
                             },
                             {
-                                icon: Wind,
-                                title: 'Unified 3D simulation cockpit',
-                                body: 'Switch between full aircraft stability, NACA wind tunnel CFD with NeuralFoil autotuning, and turbofan cycle telemetry.',
-                                actionLabel: 'Launch cockpit',
-                                to: '/lab',
+                                label: 'CRITICAL MACH',
+                                val: `Mcr ${wingAero.mCrit.toFixed(2)}`,
+                                sub: `Wave ΔCD ${wingAero.cdWave.toFixed(4)}`,
                             },
                             {
-                                icon: GraduationCap,
-                                title: 'Dual-depth aerospace curriculum',
-                                body: 'Toggle any module between intuitive K-12 foundation concepts and university-level differential equations.',
-                                actionLabel: 'Browse modules',
-                                to: '/explore',
+                                label: 'STATIC MARGIN',
+                                val: `+${stability.staticMarginPct.toFixed(1)}% MAC`,
+                                sub: `NP ${stability.neutralPointPctMac.toFixed(1)}% MAC`,
                             },
                             {
-                                icon: Calendar,
-                                title: 'Live cohorts & host console',
-                                body: 'Join youth camps or university workshops with a 6-character code, or unlock guest devices in real time from the host console.',
-                                actionLabel: 'View live events',
-                                to: '/events',
+                                label: 'TURBOFAN THRUST',
+                                val: `${enginePerf.netThrustKN.toFixed(1)} kN`,
+                                sub: `EGT ${enginePerf.egtCelsius}°C // BPR 9:1`,
                             },
-                        ].map((item, idx) => {
-                            const Icon = item.icon;
+                        ].map((cell, i) => (
+                            <div
+                                key={i}
+                                style={{
+                                    padding: '14px 16px',
+                                    borderRight: i < 3 ? '1px solid var(--border-subtle)' : 'none',
+                                    fontFamily: 'var(--font-mono)',
+                                }}
+                            >
+                                <div style={{ fontSize: '0.625rem', color: 'var(--text-tertiary)' }}>
+                                    {cell.label}
+                                </div>
+                                <div
+                                    className="vg-tabular"
+                                    style={{
+                                        fontSize: '0.9375rem',
+                                        fontWeight: 600,
+                                        color: 'var(--text-primary)',
+                                        margin: '2px 0',
+                                    }}
+                                >
+                                    {cell.val}
+                                </div>
+                                <div
+                                    className="vg-tabular"
+                                    style={{ fontSize: '0.625rem', color: 'var(--accent-primary)' }}
+                                >
+                                    {cell.sub}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Right Column: LIVE Interactive 3D WebGL CAD Viewport (EnduroSat Wireframe + ArcMarumo Deck) */}
+                <div
+                    style={{
+                        position: 'relative',
+                        minHeight: '580px',
+                        height: '100%',
+                        background: '#07090E',
+                        display: 'flex',
+                        flexDirection: 'column',
+                    }}
+                >
+                    {/* Top 3D Viewport HUD Bar: CAD Render Mode Switches */}
+                    <div
+                        style={{
+                            position: 'absolute',
+                            top: '16px',
+                            left: '16px',
+                            right: '16px',
+                            zIndex: 20,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            gap: '8px',
+                            flexWrap: 'wrap',
+                            pointerEvents: 'none',
+                        }}
+                    >
+                        <div
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                padding: '4px',
+                                background: 'rgba(12, 16, 23, 0.88)',
+                                border: '1px solid var(--border-subtle)',
+                                pointerEvents: 'auto',
+                            }}
+                        >
+                            <button
+                                type="button"
+                                onClick={() => setSubject3D('aircraft')}
+                                className={`vg-segmented-btn ${subject3D === 'aircraft' ? 'active' : ''}`}
+                            >
+                                3D AIRFRAME CAD
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setSubject3D('engine')}
+                                className={`vg-segmented-btn ${subject3D === 'engine' ? 'active' : ''}`}
+                            >
+                                3D TURBOFAN CORE [E]
+                            </button>
+                        </div>
+
+                        <div
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                padding: '4px',
+                                background: 'rgba(12, 16, 23, 0.88)',
+                                border: '1px solid var(--border-subtle)',
+                                pointerEvents: 'auto',
+                            }}
+                        >
+                            <button
+                                type="button"
+                                onClick={() => setWireframeMode((w) => !w)}
+                                className={`vg-segmented-btn ${wireframeMode ? 'active' : ''}`}
+                            >
+                                CAD WIREFRAME [W]
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setCutawayMode((c) => !c)}
+                                className={`vg-segmented-btn ${cutawayMode ? 'active' : ''}`}
+                            >
+                                X-RAY CUTAWAY [C]
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Live Three.js WebGL Canvas */}
+                    <div style={{ flex: 1, position: 'relative' }}>
+                        <AircraftViewer3D
+                            subject={subject3D}
+                            selectedSubsystem={activeSubsystem.id}
+                            onSelectSubsystem={(id) => {
+                                const idx = HANGAR_SUBSYSTEMS.findIndex((s) => s.id === id);
+                                if (idx !== -1) setActiveSubIdx(idx);
+                            }}
+                            wireframe={wireframeMode}
+                            autoRotate
+                            autoRotateSpeed={0.45}
+                            rigState={{
+                                cutawayRatio: cutawayMode ? 0.5 : 0,
+                                flapDeg: activeMission.flapDeg,
+                                slatDeg: activeMission.slatDeg,
+                                aoaDeg: activeMission.aoa,
+                                throttlePct: activeMission.throttlePct,
+                                bypassRatio: 9.0,
+                            }}
+                            showVectors
+                        />
+                    </div>
+
+                    {/* Bottom ArcMarumo Tactile Hardware Selector Deck ([1]-[5]) */}
+                    <div
+                        style={{
+                            position: 'absolute',
+                            bottom: '16px',
+                            left: '16px',
+                            right: '16px',
+                            zIndex: 20,
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(5, 1fr)',
+                            gap: '6px',
+                        }}
+                    >
+                        {HANGAR_SUBSYSTEMS.map((sub, idx) => {
+                            const isSelected = idx === activeSubIdx;
+                            return (
+                                <button
+                                    key={sub.id}
+                                    type="button"
+                                    onClick={() => {
+                                        setActiveSubIdx(idx);
+                                        setSubject3D(sub.id === 'engines' ? 'engine' : 'aircraft');
+                                    }}
+                                    style={{
+                                        padding: '10px 10px',
+                                        textAlign: 'left',
+                                        background: isSelected
+                                            ? 'rgba(79, 139, 255, 0.22)'
+                                            : 'rgba(12, 16, 23, 0.88)',
+                                        border: isSelected
+                                            ? '1px solid var(--accent-primary)'
+                                            : '1px solid var(--border-subtle)',
+                                        color: 'var(--text-primary)',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        gap: '4px',
+                                        transition: 'all 120ms ease',
+                                    }}
+                                >
+                                    <div
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'space-between',
+                                            fontFamily: 'var(--font-mono)',
+                                            fontSize: '0.6875rem',
+                                            color: isSelected
+                                                ? 'var(--accent-primary)'
+                                                : 'var(--text-tertiary)',
+                                        }}
+                                    >
+                                        <span>[{idx + 1}]</span>
+                                        <span>{sub.code}</span>
+                                    </div>
+                                    <div
+                                        style={{
+                                            fontSize: '0.75rem',
+                                            fontWeight: 600,
+                                            whiteSpace: 'nowrap',
+                                            overflow: 'hidden',
+                                            textOverflow: 'ellipsis',
+                                        }}
+                                    >
+                                        {sub.shortLabel || sub.name}
+                                    </div>
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+            </section>
+
+            {/* =====================================================================
+                SECTION 02 // ENDUROSAT-STYLE MISSION PROFILE CONFIGURATOR MATRIX
+               ===================================================================== */}
+            <section
+                style={{
+                    borderBottom: '1px solid var(--border-subtle)',
+                    background: 'var(--bg-surface)',
+                }}
+            >
+                <div className="vg-container">
+                    {/* Section Header Row */}
+                    <div
+                        style={{
+                            padding: '20px 24px',
+                            borderBottom: '1px solid var(--border-subtle)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            flexWrap: 'wrap',
+                            gap: '12px',
+                        }}
+                    >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            <span className="vg-badge vg-badge-accent">SEC.02</span>
+                            <h2
+                                style={{
+                                    fontFamily: 'var(--font-mono)',
+                                    fontSize: '0.9375rem',
+                                    fontWeight: 600,
+                                    margin: 0,
+                                }}
+                            >
+                                INTERACTIVE FLIGHT &amp; WIND-TUNNEL MISSION CONFIGURATOR
+                            </h2>
+                        </div>
+                        <span
+                            style={{
+                                fontFamily: 'var(--font-mono)',
+                                fontSize: '0.75rem',
+                                color: 'var(--text-secondary)',
+                            }}
+                        >
+                            SELECT AN OPERATING ENVELOPE TO PRE-LOAD THE 3D SIMULATION COCKPIT
+                        </span>
+                    </div>
+
+                    {/* 3-Column Exposed Hairline Grid for Mission Profiles */}
+                    <div
+                        style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+                        }}
+                    >
+                        {MISSION_PROFILES.map((m, idx) => {
+                            const isSelected = m.id === selectedMissionId;
                             return (
                                 <div
-                                    key={idx}
-                                    className="vg-card"
+                                    key={m.id}
+                                    onClick={() => setSelectedMissionId(m.id)}
                                     style={{
-                                        padding: '24px',
+                                        padding: '28px 24px',
+                                        borderRight:
+                                            idx < MISSION_PROFILES.length - 1
+                                                ? '1px solid var(--border-subtle)'
+                                                : 'none',
+                                        background: isSelected
+                                            ? 'var(--accent-subtle)'
+                                            : 'transparent',
+                                        cursor: 'pointer',
                                         display: 'flex',
                                         flexDirection: 'column',
                                         justifyContent: 'space-between',
-                                        gap: '16px',
+                                        gap: '20px',
+                                        transition: 'background 140ms ease',
                                     }}
                                 >
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                                         <div
                                             style={{
-                                                width: '40px',
-                                                height: '40px',
-                                                borderRadius: 'var(--radius-sm)',
-                                                background: 'var(--accent-subtle)',
-                                                color: 'var(--accent-primary)',
                                                 display: 'flex',
                                                 alignItems: 'center',
-                                                justifyContent: 'center',
+                                                justifyContent: 'space-between',
+                                                fontFamily: 'var(--font-mono)',
+                                                fontSize: '0.75rem',
                                             }}
                                         >
-                                            <Icon size={20} />
+                                            <span style={{ color: 'var(--accent-primary)', fontWeight: 600 }}>
+                                                [{m.code}]
+                                            </span>
+                                            <span className="vg-badge">
+                                                STATION // {m.station.toUpperCase()}
+                                            </span>
                                         </div>
-                                        <h2 style={{ fontSize: '1.0625rem', fontWeight: 600, margin: 0 }}>
-                                            {item.title}
-                                        </h2>
-                                        <p
+
+                                        <h3 style={{ fontSize: '1.125rem', fontWeight: 600, margin: 0 }}>
+                                            {m.title}
+                                        </h3>
+
+                                        <div
                                             style={{
-                                                fontSize: '0.875rem',
+                                                fontFamily: 'var(--font-mono)',
+                                                fontSize: '0.75rem',
                                                 color: 'var(--text-secondary)',
-                                                margin: 0,
-                                                lineHeight: 1.6,
                                             }}
                                         >
-                                            {item.body}
-                                        </p>
+                                            {m.subtitle}
+                                        </div>
                                     </div>
-                                    <Link
-                                        to={item.to}
+
+                                    <div
                                         style={{
-                                            display: 'inline-flex',
+                                            display: 'flex',
                                             alignItems: 'center',
-                                            gap: '6px',
-                                            fontSize: '0.8125rem',
-                                            fontWeight: 500,
-                                            color: 'var(--accent-primary)',
-                                            textDecoration: 'none',
+                                            justifyContent: 'space-between',
+                                            paddingTop: '14px',
+                                            borderTop: '1px solid var(--border-subtle)',
                                         }}
                                     >
-                                        {item.actionLabel}
-                                        <ArrowRight size={14} />
-                                    </Link>
+                                        <span
+                                            style={{
+                                                fontFamily: 'var(--font-mono)',
+                                                fontSize: '0.75rem',
+                                                color: isSelected
+                                                    ? 'var(--accent-primary)'
+                                                    : 'var(--text-tertiary)',
+                                            }}
+                                        >
+                                            {isSelected ? 'ACTIVE ENVELOPE' : 'CLICK TO PREVIEW IN 3D'}
+                                        </span>
+                                        <button
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleLaunchMission(m);
+                                            }}
+                                            className="vg-btn vg-btn-primary vg-btn-sm"
+                                        >
+                                            DEPLOY IN COCKPIT
+                                            <ArrowRight size={13} />
+                                        </button>
+                                    </div>
                                 </div>
                             );
                         })}
@@ -354,17 +728,19 @@ export default function LandingPage() {
                 </div>
             </section>
 
-            {/* Asymmetric 8/4 Split Section: Interactive Curriculum Preview & Track Selector */}
-            <section style={{ padding: '24px 24px 56px' }}>
+            {/* =====================================================================
+                SECTION 03 // ARCHITECTURAL SPEC MATRIX & LIVE HOST OVERRIDE TERMINAL
+               ===================================================================== */}
+            <section style={{ padding: '48px 24px 64px' }}>
                 <div
                     className="vg-container"
                     style={{
                         display: 'grid',
-                        gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))',
                         gap: '24px',
                     }}
                 >
-                    {/* Left Card: 5 Interactive Hangar Subsystems */}
+                    {/* Left Panel: 5 Interactive Subsystems Specification Table */}
                     <div
                         className="vg-card"
                         style={{
@@ -379,76 +755,95 @@ export default function LandingPage() {
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'space-between',
-                                gap: '12px',
                                 flexWrap: 'wrap',
+                                gap: '12px',
+                                borderBottom: '1px solid var(--border-subtle)',
+                                paddingBottom: '14px',
                             }}
                         >
                             <div>
-                                <h2 style={{ fontSize: '1.25rem', fontWeight: 600, margin: 0 }}>
-                                    3D hangar curriculum subsystems
+                                <span
+                                    style={{
+                                        fontFamily: 'var(--font-mono)',
+                                        fontSize: '0.6875rem',
+                                        color: 'var(--accent-primary)',
+                                    }}
+                                >
+                                    SEC.03 // CURRICULUM &amp; CAD ARCHITECTURE
+                                </span>
+                                <h2 style={{ fontSize: '1.125rem', fontWeight: 600, margin: '2px 0 0 0' }}>
+                                    Dual-depth aerospace engineering modules
                                 </h2>
-                                <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>
-                                    Select any aircraft or propulsion zone to open its 3D rig and theory drawer
-                                </p>
                             </div>
+
                             <div className="vg-segmented">
                                 <button
                                     type="button"
                                     className={`vg-segmented-btn ${curriculumDepth === 'foundation' ? 'active' : ''}`}
                                     onClick={() => setCurriculumDepth('foundation')}
                                 >
-                                    Foundation track
+                                    FOUNDATION
                                 </button>
                                 <button
                                     type="button"
                                     className={`vg-segmented-btn ${curriculumDepth === 'engineering' ? 'active' : ''}`}
                                     onClick={() => setCurriculumDepth('engineering')}
                                 >
-                                    Engineering track
+                                    ENGINEERING
                                 </button>
                             </div>
                         </div>
 
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                            {HANGAR_SUBSYSTEMS.map((sub) => (
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            {HANGAR_SUBSYSTEMS.map((sub, i) => (
                                 <div
                                     key={sub.id}
-                                    className="vg-card-nested"
                                     style={{
-                                        padding: '14px 16px',
+                                        padding: '12px 0',
+                                        borderBottom:
+                                            i < HANGAR_SUBSYSTEMS.length - 1
+                                                ? '1px solid var(--border-subtle)'
+                                                : 'none',
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'space-between',
-                                        gap: '16px',
-                                        background: 'var(--bg-canvas)',
+                                        gap: '12px',
                                     }}
                                 >
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                            <span className="vg-badge vg-badge-accent">{sub.code}</span>
-                                            <span style={{ fontSize: '0.9375rem', fontWeight: 600 }}>
-                                                {sub.name}
-                                            </span>
-                                        </div>
-                                        <span style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
-                                            {sub.subtitle}
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                        <span
+                                            style={{
+                                                fontFamily: 'var(--font-mono)',
+                                                fontSize: '0.75rem',
+                                                color: 'var(--accent-primary)',
+                                                fontWeight: 600,
+                                            }}
+                                        >
+                                            [{sub.code}]
                                         </span>
+                                        <div>
+                                            <div style={{ fontSize: '0.875rem', fontWeight: 600 }}>
+                                                {sub.name}
+                                            </div>
+                                            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                                                {sub.subtitle}
+                                            </div>
+                                        </div>
                                     </div>
                                     <button
                                         type="button"
                                         onClick={() => navigate(`/explore/${sub.id}`)}
                                         className="vg-btn vg-btn-secondary vg-btn-sm"
-                                        style={{ flexShrink: 0 }}
                                     >
-                                        Inspect
-                                        <ArrowRight size={13} />
+                                        INSPECT
+                                        <ArrowUpRight size={13} />
                                     </button>
                                 </div>
                             ))}
                         </div>
                     </div>
 
-                    {/* Right Card: Direct Access & Live Host Override Overview */}
+                    {/* Right Panel: Hardware Device Identity & Live Event Cohort Terminal */}
                     <div
                         className="vg-card"
                         style={{
@@ -460,57 +855,67 @@ export default function LandingPage() {
                         }}
                     >
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                            <span className="vg-badge vg-badge-accent" style={{ alignSelf: 'flex-start' }}>
-                                Workshop & VIP access architecture
-                            </span>
-                            <h3 style={{ fontSize: '1.25rem', fontWeight: 600, margin: 0 }}>
-                                Designed for classrooms, engineering labs, and faculty demonstrations.
-                            </h3>
-                            <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.65 }}>
-                                Visitors can start immediately with their display name while their progress binds to their hardware device ID. During live university lectures or youth camps, the host can upgrade any guest device to full VIP access in one click.
+                            <div
+                                style={{
+                                    borderBottom: '1px solid var(--border-subtle)',
+                                    paddingBottom: '14px',
+                                }}
+                            >
+                                <span
+                                    style={{
+                                        fontFamily: 'var(--font-mono)',
+                                        fontSize: '0.6875rem',
+                                        color: 'var(--accent-primary)',
+                                    }}
+                                >
+                                    SEC.04 // TELEMETRY ACCESS &amp; HOST OVERRIDE
+                                </span>
+                                <h2 style={{ fontSize: '1.125rem', fontWeight: 600, margin: '2px 0 0 0' }}>
+                                    Hardware-bound session &amp; live cohort codes
+                                </h2>
+                            </div>
+
+                            <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.6 }}>
+                                Every guest or student session is bound to a deterministic hardware fingerprint. During university lab sessions or youth camps, the founder or instructor can elevate any device ID to full VIP access in real time from the host console.
                             </p>
 
                             <div
                                 className="vg-card-nested"
                                 style={{
-                                    padding: '16px',
-                                    background: 'var(--bg-canvas)',
+                                    padding: '14px 16px',
+                                    fontFamily: 'var(--font-mono)',
+                                    fontSize: '0.75rem',
                                     display: 'flex',
                                     flexDirection: 'column',
-                                    gap: '10px',
+                                    gap: '8px',
                                 }}
                             >
-                                <div style={{ fontSize: '0.8125rem', fontWeight: 600 }}>
-                                    Active cohort codes for instant testing
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                    <span style={{ color: 'var(--text-secondary)' }}>DEVICE FINGERPRINT</span>
+                                    <span style={{ color: 'var(--accent-primary)', fontWeight: 600 }}>
+                                        {deviceFingerprint}
+                                    </span>
                                 </div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem' }}>
-                                    <code style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent-primary)', fontWeight: 600 }}>
-                                        VG-YOUTH
-                                    </code>
-                                    <span style={{ color: 'var(--text-secondary)' }}>Youth aviation camp track</span>
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                    <span style={{ color: 'var(--text-secondary)' }}>ACTIVE OPERATOR</span>
+                                    <span>{displayName}</span>
                                 </div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem' }}>
-                                    <code style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent-primary)', fontWeight: 600 }}>
-                                        VG-UNI26
-                                    </code>
-                                    <span style={{ color: 'var(--text-secondary)' }}>University aerodynamics lab</span>
-                                </div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem' }}>
-                                    <code style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent-primary)', fontWeight: 600 }}>
-                                        VG-VIP01
-                                    </code>
-                                    <span style={{ color: 'var(--text-secondary)' }}>Faculty / VIP full platform</span>
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                    <span style={{ color: 'var(--text-secondary)' }}>COHORT CODES</span>
+                                    <span style={{ color: 'var(--status-success)' }}>
+                                        VG-YOUTH // VG-UNI26 // VG-VIP01
+                                    </span>
                                 </div>
                             </div>
                         </div>
 
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                            <Link to="/login" className="vg-btn vg-btn-primary" style={{ width: '100%' }}>
-                                Configure session or enter event code
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                            <Link to="/login" className="vg-btn vg-btn-primary">
+                                CONFIGURE SESSION
                             </Link>
-                            <Link to="/admin" className="vg-btn vg-btn-secondary" style={{ width: '100%' }}>
-                                <Shield size={15} />
-                                Open founder live host console
+                            <Link to="/admin" className="vg-btn vg-btn-secondary">
+                                <Shield size={14} />
+                                HOST CONSOLE
                             </Link>
                         </div>
                     </div>
@@ -523,7 +928,10 @@ export default function LandingPage() {
                     marginTop: 'auto',
                     background: 'var(--bg-surface)',
                     borderTop: '1px solid var(--border-subtle)',
-                    padding: '24px',
+                    padding: '16px 24px',
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: '0.75rem',
+                    color: 'var(--text-secondary)',
                 }}
             >
                 <div
@@ -532,27 +940,17 @@ export default function LandingPage() {
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
-                        gap: '16px',
                         flexWrap: 'wrap',
-                        fontSize: '0.8125rem',
-                        color: 'var(--text-secondary)',
+                        gap: '12px',
                     }}
                 >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <img
-                            src="/brand/logo-icon.jpg"
-                            alt="Vortex-Gen"
-                            style={{ width: '24px', height: '24px', borderRadius: '4px' }}
-                        />
-                        <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Vortex-Gen</span>
-                        <span>Aerospace Engineering & Flight Simulation Platform</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                    <span>VORTEX-GEN REMASTERED // DIGITAL WIND TUNNEL &amp; FLIGHT MECHANICS</span>
+                    <div style={{ display: 'flex', gap: '16px' }}>
                         <Link to="/privacy" style={{ color: 'var(--text-secondary)', textDecoration: 'none' }}>
-                            Privacy policy
+                            [PRIVACY]
                         </Link>
                         <Link to="/terms" style={{ color: 'var(--text-secondary)', textDecoration: 'none' }}>
-                            Terms of service
+                            [TERMS]
                         </Link>
                     </div>
                 </div>
@@ -560,4 +958,3 @@ export default function LandingPage() {
         </div>
     );
 }
-

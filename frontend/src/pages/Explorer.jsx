@@ -56,6 +56,7 @@ export default function Explorer() {
     const [drawerOpen, setDrawerOpen] = useState(true);
     const [rigState, setRigState] = useState(DEFAULT_RIG_STATE);
     const [showVectorOverlay, setShowVectorOverlay] = useState(true);
+    const [wireframeMode, setWireframeMode] = useState(false);
 
     // Access / Event Code unlock modal state
     const [accessModalOpen, setAccessModalOpen] = useState(false);
@@ -170,6 +171,7 @@ export default function Explorer() {
                     onSelectSubsystem={handleSelectSubsystem}
                     rigState={rigState}
                     showVectors={showVectorOverlay}
+                    wireframe={wireframeMode}
                 />
 
                 {/* Top-Left Subject Switcher & Telemetry HUD */}
@@ -264,10 +266,32 @@ export default function Explorer() {
                                 color: '#E2E8F0',
                                 fontSize: '0.75rem',
                                 cursor: 'pointer',
+                                fontFamily: 'var(--font-mono)',
                             }}
                         >
                             <Eye size={13} />
                             Vectors
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={() => setWireframeMode((w) => !w)}
+                            style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                padding: '6px 10px',
+                                borderRadius: 'var(--radius-xs)',
+                                border: '1px solid rgba(148,163,184,0.25)',
+                                background: wireframeMode ? 'rgba(59,130,246,0.28)' : 'transparent',
+                                color: '#E2E8F0',
+                                fontSize: '0.75rem',
+                                cursor: 'pointer',
+                                fontFamily: 'var(--font-mono)',
+                            }}
+                        >
+                            <Layers size={13} />
+                            CAD wireframe
                         </button>
                     </div>
 
