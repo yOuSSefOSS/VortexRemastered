@@ -17,6 +17,8 @@ import {
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import AircraftViewer3D from '../components/AircraftViewer3D';
+import F16FalconAssembly, { F16_PARTS } from '../components/three/F16FalconAssembly';
+import TurbofanExplorer3D from '../components/three/TurbofanExplorer3D';
 import { HANGAR_SUBSYSTEMS } from '../data/hangarCurriculum';
 import { computeISAAtmosphere, computeCabinPressurization } from '../domain/isaAtmosphere';
 import {
@@ -85,10 +87,13 @@ export default function LandingPage() {
         setFlightConditions,
     } = useApp();
 
-    // Interactive 3D CAD state on the Landing Page (EnduroSat × ArcMarumo)
+    // Interactive 3D CAD state on the Landing Page (EnduroSat × ArcMarumo × Video 1/2/3)
     const [activeSubIdx, setActiveSubIdx] = useState(1); // Default 02 // Wings
-    const [subject3D, setSubject3D] = useState('aircraft'); // 'aircraft' | 'engine'
-    const [wireframeMode, setWireframeMode] = useState(true); // EnduroSat CAD wireframe default
+    const [subject3D, setSubject3D] = useState('f16'); // 'f16' | 'engine' | 'aircraft'
+    const [f16Explode, setF16Explode] = useState(0.0);
+    const [f16Flight, setF16Flight] = useState(false);
+    const [selectedF16Part, setSelectedF16Part] = useState('radome');
+    const [wireframeMode, setWireframeMode] = useState(false);
     const [cutawayMode, setCutawayMode] = useState(true);
     const [selectedMissionId, setSelectedMissionId] = useState('transonic_cruise');
 
@@ -441,17 +446,24 @@ export default function LandingPage() {
                         >
                             <button
                                 type="button"
-                                onClick={() => setSubject3D('aircraft')}
-                                className={`vg-segmented-btn ${subject3D === 'aircraft' ? 'active' : ''}`}
+                                onClick={() => setSubject3D('f16')}
+                                className={`vg-segmented-btn ${subject3D === 'f16' ? 'active' : ''}`}
                             >
-                                3D AIRFRAME CAD
+                                F-16 FALCON (12-PART)
                             </button>
                             <button
                                 type="button"
                                 onClick={() => setSubject3D('engine')}
                                 className={`vg-segmented-btn ${subject3D === 'engine' ? 'active' : ''}`}
                             >
-                                3D TURBOFAN CORE [E]
+                                TURBOFAN CORE [E]
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setSubject3D('aircraft')}
+                                className={`vg-segmented-btn ${subject3D === 'aircraft' ? 'active' : ''}`}
+                            >
+                                TRANSPORT RIG
                             </button>
                         </div>
 
@@ -466,45 +478,93 @@ export default function LandingPage() {
                                 pointerEvents: 'auto',
                             }}
                         >
+                            {subject3D === 'f16' && (
+                                <>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setF16Flight(false);
+                                            setF16Explode((v) => (v > 0.5 ? 0.0 : 1.0));
+                                        }}
+                                        className={`vg-segmented-btn ${f16Explode > 0.5 ? 'active' : ''}`}
+                                    >
+                                        {f16Explode > 0.5 ? 'REASSEMBLE' : 'EXPLODE (12 PARTS)'}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setF16Flight((v) => {
+                                                const next = !v;
+                                                if (next) setF16Explode(0);
+                                                return next;
+                                            });
+                                        }}
+                                        className={`vg-segmented-btn ${f16Flight ? 'active' : ''}`}
+                                    >
+                                        {f16Flight ? 'EXIT FLIGHT' : 'LAUNCH FLIGHT'}
+                                    </button>
+                                </>
+                            )}
                             <button
                                 type="button"
                                 onClick={() => setWireframeMode((w) => !w)}
                                 className={`vg-segmented-btn ${wireframeMode ? 'active' : ''}`}
                             >
-                                CAD WIREFRAME [W]
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setCutawayMode((c) => !c)}
-                                className={`vg-segmented-btn ${cutawayMode ? 'active' : ''}`}
-                            >
-                                X-RAY CUTAWAY [C]
+                                WIREFRAME [W]
                             </button>
                         </div>
                     </div>
 
                     {/* Live Three.js WebGL Canvas */}
                     <div style={{ flex: 1, position: 'relative' }}>
-                        <AircraftViewer3D
-                            subject={subject3D}
-                            selectedSubsystem={activeSubsystem.id}
-                            onSelectSubsystem={(id) => {
-                                const idx = HANGAR_SUBSYSTEMS.findIndex((s) => s.id === id);
-                                if (idx !== -1) setActiveSubIdx(idx);
-                            }}
-                            wireframe={wireframeMode}
-                            autoRotate
-                            autoRotateSpeed={0.45}
-                            rigState={{
-                                cutawayRatio: cutawayMode ? 0.5 : 0,
-                                flapDeg: activeMission.flapDeg,
-                                slatDeg: activeMission.slatDeg,
-                                aoaDeg: activeMission.aoa,
-                                throttlePct: activeMission.throttlePct,
-                                bypassRatio: 9.0,
-                            }}
-                            showVectors
-                        />
+                        {subject3D === 'f16' ? (
+                            <F16FalconAssembly
+                                explodeFactor={f16Explode}
+                                selectedPartId={selectedF16Part}
+                                onSelectPart={(partId) => {
+                                    setSelectedF16Part(partId);
+                                    const part = F16_PARTS.find((p) => p.id === partId);
+                                    if (part?.subsystemMap) {
+                                        const idx = HANGAR_SUBSYSTEMS.findIndex(
+                                            (s) => s.id === part.subsystemMap
+                                        );
+                                        if (idx !== -1) setActiveSubIdx(idx);
+                                    }
+                                }}
+                                flightMode={f16Flight}
+                                wireframe={wireframeMode}
+                                showLabels
+                            />
+                        ) : subject3D === 'engine' ? (
+                            <div style={{ width: '100%', height: '100%', paddingTop: '54px' }}>
+                                <TurbofanExplorer3D
+                                    throttlePct={activeMission.throttlePct}
+                                    bypassRatio={9.0}
+                                    height="520px"
+                                />
+                            </div>
+                        ) : (
+                            <AircraftViewer3D
+                                subject="aircraft"
+                                selectedSubsystem={activeSubsystem.id}
+                                onSelectSubsystem={(id) => {
+                                    const idx = HANGAR_SUBSYSTEMS.findIndex((s) => s.id === id);
+                                    if (idx !== -1) setActiveSubIdx(idx);
+                                }}
+                                wireframe={wireframeMode}
+                                autoRotate
+                                autoRotateSpeed={0.45}
+                                rigState={{
+                                    cutawayRatio: cutawayMode ? 0.5 : 0,
+                                    flapDeg: activeMission.flapDeg,
+                                    slatDeg: activeMission.slatDeg,
+                                    aoaDeg: activeMission.aoa,
+                                    throttlePct: activeMission.throttlePct,
+                                    bypassRatio: 9.0,
+                                }}
+                                showVectors
+                            />
+                        )}
                     </div>
 
                     {/* Bottom ArcMarumo Tactile Hardware Selector Deck ([1]-[5]) */}

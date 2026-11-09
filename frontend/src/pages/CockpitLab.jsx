@@ -22,6 +22,9 @@ import {
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import AircraftViewer3D from '../components/AircraftViewer3D';
+import F16FalconAssembly from '../components/three/F16FalconAssembly';
+import TurbofanExplorer3D from '../components/three/TurbofanExplorer3D';
+import NavierStokesTunnel2D from '../components/cfd/NavierStokesTunnel2D';
 import SimulationView from '../components/SimulationView';
 import SpotlightChart from '../components/SpotlightChart';
 import ControlSlider from '../components/ControlSlider';
@@ -68,6 +71,12 @@ export default function CockpitLab() {
     );
 
     // High-lift, planform, stability & engine rig parameters shared across cockpit stations
+    const [aircraftModelMode, setAircraftModelMode] = useState('f16'); // 'f16' | 'transport'
+    const [f16Explode, setF16Explode] = useState(0.0);
+    const [f16Flight, setF16Flight] = useState(false);
+    const [selectedF16Part, setSelectedF16Part] = useState('radome');
+    const [tunnelDimension, setTunnelDimension] = useState('2d_cfd'); // '2d_cfd' | '3d_wing'
+
     const [flapDeg, setFlapDeg] = useState(10);
     const [slatDeg, setSlatDeg] = useState(5);
     const [sweepDeg, setSweepDeg] = useState(25);
@@ -567,45 +576,211 @@ export default function CockpitLab() {
             >
                 {/* Left Column: 3D Viewport + Telemetry / Spotlight Chart */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', minWidth: 0 }}>
-                    {/* Primary 3D Viewport */}
-                    <div
-                        style={{
-                            height: station === 'windtunnel' ? '400px' : '480px',
-                            borderRadius: 'var(--radius-md)',
-                            overflow: 'hidden',
-                            position: 'relative',
-                            border: '1px solid var(--border-subtle)',
-                        }}
-                    >
-                        {station === 'windtunnel' ? (
-                            <SimulationView
-                                shape={{
-                                    ...activeAirfoil,
-                                    aoa: activeAirfoil.aoa + gustPitchOffset,
+                    {/* Primary Viewport (Station 1: F-16 / Airliner · Station 2: 2D Navier-Stokes CFD / 3D Wing · Station 3: 3D Turbofan Cutaway) */}
+                    {station === 'windtunnel' ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                            <div
+                                style={{
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center',
+                                    background: 'var(--bg-surface)',
+                                    border: '1px solid var(--border-subtle)',
+                                    borderRadius: 'var(--radius-sm)',
+                                    padding: '8px 12px',
                                 }}
-                                compareShape={compareAirfoil}
-                                flapDeg={flapDeg}
-                                slatDeg={slatDeg}
-                                sweepDeg={sweepDeg}
-                                aeroMetrics={{
-                                    cl: wingAero.cl3D,
-                                    cd: wingAero.cdTotal,
-                                    cm: wingAero.cm3D,
-                                    isStalled: wingAero.isStalled,
+                            >
+                                <div className="mono" style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                                    AERODYNAMICS STUDIO · SOLVER VIEWPORT
+                                </div>
+                                <div style={{ display: 'flex', gap: '6px' }}>
+                                    <button
+                                        type="button"
+                                        onClick={() => setTunnelDimension('2d_cfd')}
+                                        className={`btn btn-sm ${
+                                            tunnelDimension === '2d_cfd' ? 'btn-primary' : 'btn-secondary'
+                                        }`}
+                                        style={{ fontSize: '11px' }}
+                                    >
+                                        2D Navier-Stokes Fluid Tunnel
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setTunnelDimension('3d_wing')}
+                                        className={`btn btn-sm ${
+                                            tunnelDimension === '3d_wing' ? 'btn-primary' : 'btn-secondary'
+                                        }`}
+                                        style={{ fontSize: '11px' }}
+                                    >
+                                        3D Extruded Wing Tunnel
+                                    </button>
+                                </div>
+                            </div>
+
+                            {tunnelDimension === '2d_cfd' ? (
+                                <NavierStokesTunnel2D
+                                    nacaCode={formatNacaCode(
+                                        activeAirfoil.camber,
+                                        activeAirfoil.maxCamberLoc,
+                                        activeAirfoil.thickness
+                                    )}
+                                    m={activeAirfoil.camber}
+                                    p={activeAirfoil.maxCamberLoc}
+                                    t={activeAirfoil.thickness}
+                                    aoa={activeAirfoil.aoa}
+                                    onAoaChange={(newAoa) =>
+                                        setActiveAirfoil((prev) => ({ ...prev, aoa: newAoa }))
+                                    }
+                                    velocityMs={flightConditions.airspeedMs}
+                                    onVelocityChange={(newVel) =>
+                                        setFlightConditions((prev) => ({
+                                            ...prev,
+                                            airspeedMs: newVel,
+                                        }))
+                                    }
+                                    cl={wingAero.cl3D}
+                                    cd={wingAero.cdTotal}
+                                />
+                            ) : (
+                                <div
+                                    style={{
+                                        height: '420px',
+                                        borderRadius: 'var(--radius-md)',
+                                        overflow: 'hidden',
+                                        position: 'relative',
+                                        border: '1px solid var(--border-subtle)',
+                                    }}
+                                >
+                                    <SimulationView
+                                        shape={{
+                                            ...activeAirfoil,
+                                            aoa: activeAirfoil.aoa + gustPitchOffset,
+                                        }}
+                                        compareShape={compareAirfoil}
+                                        flapDeg={flapDeg}
+                                        slatDeg={slatDeg}
+                                        sweepDeg={sweepDeg}
+                                        aeroMetrics={{
+                                            cl: wingAero.cl3D,
+                                            cd: wingAero.cdTotal,
+                                            cm: wingAero.cm3D,
+                                            isStalled: wingAero.isStalled,
+                                        }}
+                                        airspeedMs={flightConditions.airspeedMs}
+                                    />
+                                </div>
+                            )}
+                        </div>
+                    ) : station === 'propulsion' ? (
+                        <TurbofanExplorer3D
+                            throttlePct={throttlePct}
+                            bypassRatio={bypassRatio}
+                            height="540px"
+                        />
+                    ) : (
+                        <div
+                            style={{
+                                height: '500px',
+                                borderRadius: 'var(--radius-md)',
+                                overflow: 'hidden',
+                                position: 'relative',
+                                border: '1px solid var(--border-subtle)',
+                            }}
+                        >
+                            {/* Top-Left Aircraft Rig Selector (F-16 Falcon vs Transport Airliner) */}
+                            <div
+                                style={{
+                                    position: 'absolute',
+                                    top: '12px',
+                                    left: '12px',
+                                    zIndex: 20,
+                                    display: 'flex',
+                                    gap: '6px',
+                                    flexWrap: 'wrap',
+                                    background: 'rgba(8, 12, 20, 0.86)',
+                                    backdropFilter: 'blur(10px)',
+                                    border: '1px solid rgba(148, 163, 184, 0.28)',
+                                    borderRadius: '4px',
+                                    padding: '6px',
                                 }}
-                                airspeedMs={flightConditions.airspeedMs}
-                            />
-                        ) : (
-                            <AircraftViewer3D
-                                subject={station === 'propulsion' ? 'engine' : 'aircraft'}
-                                selectedSubsystem={
-                                    station === 'propulsion' ? 'engines' : 'wings'
-                                }
-                                rigState={rigStateFor3D}
-                                showVectors
-                            />
-                        )}
-                    </div>
+                            >
+                                <button
+                                    type="button"
+                                    onClick={() => setAircraftModelMode('f16')}
+                                    className={`btn btn-sm ${
+                                        aircraftModelMode === 'f16' ? 'btn-primary' : 'btn-secondary'
+                                    }`}
+                                    style={{ fontSize: '11px' }}
+                                >
+                                    F-16 Fighting Falcon (12-Part)
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setAircraftModelMode('transport')}
+                                    className={`btn btn-sm ${
+                                        aircraftModelMode === 'transport' ? 'btn-primary' : 'btn-secondary'
+                                    }`}
+                                    style={{ fontSize: '11px' }}
+                                >
+                                    Transport Airliner Stability Rig
+                                </button>
+                                {aircraftModelMode === 'f16' && (
+                                    <>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setF16Flight(false);
+                                                setF16Explode((v) => (v > 0.5 ? 0.0 : 1.0));
+                                            }}
+                                            className="btn btn-secondary btn-sm"
+                                            style={{ fontSize: '11px' }}
+                                        >
+                                            {f16Explode > 0.5 ? 'Reassemble' : 'Explode Parts'}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setF16Flight((v) => {
+                                                    const next = !v;
+                                                    if (next) setF16Explode(0);
+                                                    return next;
+                                                });
+                                            }}
+                                            className={`btn btn-sm ${
+                                                f16Flight ? 'btn-primary' : 'btn-secondary'
+                                            }`}
+                                            style={{ fontSize: '11px' }}
+                                        >
+                                            {f16Flight ? 'Exit Flight' : 'Launch Flight'}
+                                        </button>
+                                    </>
+                                )}
+                            </div>
+
+                            {aircraftModelMode === 'f16' ? (
+                                <F16FalconAssembly
+                                    explodeFactor={f16Explode}
+                                    selectedPartId={selectedF16Part}
+                                    onSelectPart={setSelectedF16Part}
+                                    flightMode={f16Flight}
+                                    showLabels
+                                    controlDeflections={{
+                                        aileron: aileronDeg,
+                                        elevator: elevatorDeg + gustPitchOffset,
+                                        rudder: rudderDeg,
+                                        flaps: flapDeg,
+                                    }}
+                                />
+                            ) : (
+                                <AircraftViewer3D
+                                    subject="aircraft"
+                                    selectedSubsystem="wings"
+                                    rigState={rigStateFor3D}
+                                    showVectors
+                                />
+                            )}
+                        </div>
+                    )}
 
                     {/* Station-Specific Lower Telemetry / Chart Deck */}
                     {station === 'windtunnel' && (
