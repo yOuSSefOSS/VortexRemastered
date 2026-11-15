@@ -17,8 +17,10 @@ export default function ControlSlider({
   unit = '',
   onChange,
   baselineNote = null,
+  description = null,
   disabled = false,
 }) {
+  const effectiveNote = baselineNote || description;
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(String(value));
   const inputRef = useRef(null);
@@ -129,9 +131,9 @@ export default function ControlSlider({
           {min}
           {unit ? ` ${unit}` : ''}
         </span>
-        {baselineNote ? (
-          <span className="font-sans text-[12px] text-[var(--text-muted)] truncate max-w-[180px]">
-            {baselineNote}
+        {effectiveNote ? (
+          <span className="font-sans text-[12px] text-[var(--text-muted)] truncate max-w-[210px]" title={effectiveNote}>
+            {effectiveNote}
           </span>
         ) : null}
         <span>

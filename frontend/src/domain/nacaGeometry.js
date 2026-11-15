@@ -140,7 +140,7 @@ export function generateNaca4Coordinates(camberPct = 2, maxCamberLoc = 4, thickn
   }
 
   const coordinates = [...upper.slice().reverse(), ...lower.slice(1)];
-  return { upper, lower, coordinates };
+  return { upper, lower, coordinates, boundary: coordinates };
 }
 
 /**

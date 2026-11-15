@@ -56,10 +56,23 @@ export default function Admin() {
                 fetchEventCohorts(),
             ]);
 
-            const serverSessions =
-                sessRes.status === 'fulfilled' && Array.isArray(sessRes.value?.sessions)
-                    ? sessRes.value.sessions
+            const rawList =
+                sessRes.status === 'fulfilled'
+                    ? sessRes.value?.sessions || sessRes.value?.guest_sessions || []
                     : [];
+
+            const serverSessions = Array.isArray(rawList)
+                ? rawList.map((s) => ({
+                      deviceFingerprint: s.deviceFingerprint || s.device_fingerprint,
+                      displayName: s.displayName || s.display_name || 'Guest',
+                      accessTier: s.accessTier || s.access_tier || 'guest_restricted',
+                      role: s.role || 'guest',
+                      eventCode: s.eventCode || s.event_code || null,
+                      quizScores: s.quizScores || s.quiz_scores || {},
+                      completedSubsystems: s.completedSubsystems || Object.keys(s.progress || {}),
+                      updatedAt: s.updatedAt || s.last_seen_at || new Date().toISOString(),
+                  }))
+                : [];
 
             // Always ensure the current local device session is visible at the top of the roster
             const localEntry = {

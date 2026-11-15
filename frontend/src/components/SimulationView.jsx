@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useEffect, useState } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { OrbitControls, Grid, Html } from '@react-three/drei';
+import { OrbitControls, Grid, Html, Line } from '@react-three/drei';
 import * as THREE from 'three';
 import { generateNaca4Coordinates, formatNacaCode } from '../domain/nacaGeometry';
 
@@ -287,19 +287,16 @@ function StreamlineField({
     return (
         <group ref={linesGroupRef}>
             {visualMode !== 'smoke' &&
-                streamlineData.map((line, idx) => {
-                    const curve = new THREE.CatmullRomCurve3(line.pts);
-                    const tubeGeom = new THREE.TubeGeometry(curve, 36, 0.008, 6, false);
-                    return (
-                        <mesh key={idx} geometry={tubeGeom}>
-                            <meshBasicMaterial
-                                color={line.color}
-                                transparent
-                                opacity={visualMode === 'pressure' ? 0.45 : 0.78}
-                            />
-                        </mesh>
-                    );
-                })}
+                streamlineData.map((line, idx) => (
+                    <Line
+                        key={idx}
+                        points={line.pts}
+                        color={line.color}
+                        lineWidth={1.6}
+                        transparent
+                        opacity={visualMode === 'pressure' ? 0.45 : 0.78}
+                    />
+                ))}
 
             <points ref={smokeRef}>
                 <bufferGeometry key={`wind-particles-${particleCount}`}>
@@ -346,10 +343,10 @@ export default function SimulationView({
                 width: '100%',
                 height: '100%',
                 position: 'relative',
-                background: '#0F1217',
+                background: 'var(--scene-bg)',
                 borderRadius: 'var(--radius-md)',
                 overflow: 'hidden',
-                border: '1px solid var(--viewport-3d-border)',
+                border: '1px solid var(--border-subtle)',
             }}
         >
             <Canvas
@@ -357,10 +354,9 @@ export default function SimulationView({
                 camera={{ position: [2.4, 1.5, 4.2], fov: 40 }}
                 gl={{ antialias: true, powerPreference: 'high-performance' }}
             >
-                <color attach="background" args={['#0F1217']} />
-                <ambientLight intensity={0.65} />
-                <directionalLight position={[6, 8, 6]} intensity={1.3} castShadow />
-                <directionalLight position={[-5, -3, -4]} intensity={0.45} color="#93C5FD" />
+                <ambientLight intensity={0.85} />
+                <directionalLight position={[6, 8, 6]} intensity={1.45} castShadow />
+                <directionalLight position={[-5, -3, -4]} intensity={0.55} color="#93C5FD" />
 
                 <CameraHudUpdater hudRef={camHudRef} />
                 <CameraShortcutController controlsRef={controlsRef} />
@@ -458,43 +454,20 @@ export default function SimulationView({
                     pointerEvents: 'none',
                 }}
             >
-                <span
-                    style={{
-                        padding: '4px 10px',
-                        borderRadius: 'var(--radius-xs)',
-                        background: 'rgba(15, 23, 42, 0.85)',
-                        border: '1px solid rgba(148, 163, 184, 0.25)',
-                        color: '#F8FAFC',
-                        fontSize: '0.75rem',
-                        fontFamily: 'var(--font-mono)',
-                        fontWeight: 600,
-                    }}
-                >
+                <span className="vg-badge vg-badge-accent mono">
                     {nacaCode}
                 </span>
                 {compareCode && (
-                    <span
-                        style={{
-                            padding: '4px 10px',
-                            borderRadius: 'var(--radius-xs)',
-                            background: 'rgba(15, 23, 42, 0.85)',
-                            border: '1px solid rgba(148, 163, 184, 0.25)',
-                            color: '#94A3B8',
-                            fontSize: '0.75rem',
-                            fontFamily: 'var(--font-mono)',
-                        }}
-                    >
+                    <span className="vg-badge mono">
                         vs {compareCode}
                     </span>
                 )}
                 {aeroMetrics.isStalled && (
                     <span
+                        className="vg-badge"
                         style={{
-                            padding: '4px 10px',
-                            borderRadius: 'var(--radius-xs)',
-                            background: 'rgba(185, 28, 28, 0.9)',
+                            background: 'var(--status-danger)',
                             color: '#FFFFFF',
-                            fontSize: '0.75rem',
                             fontWeight: 600,
                         }}
                     >
@@ -505,6 +478,7 @@ export default function SimulationView({
 
             {/* Top-Right Flow Visualization Mode Switcher */}
             <div
+                className="vg-glass"
                 style={{
                     position: 'absolute',
                     top: '12px',
@@ -512,10 +486,7 @@ export default function SimulationView({
                     display: 'flex',
                     alignItems: 'center',
                     gap: '6px',
-                    background: 'rgba(15, 23, 42, 0.85)',
-                    padding: '4px',
-                    borderRadius: 'var(--radius-sm)',
-                    border: '1px solid rgba(148, 163, 184, 0.2)',
+                    padding: '4px 6px',
                 }}
             >
                 {[
@@ -527,16 +498,10 @@ export default function SimulationView({
                         key={m.id}
                         type="button"
                         onClick={() => setVisualMode(m.id)}
-                        style={{
-                            padding: '4px 10px',
-                            borderRadius: 'var(--radius-xs)',
-                            border: 'none',
-                            fontSize: '0.75rem',
-                            fontWeight: 500,
-                            cursor: 'pointer',
-                            background: visualMode === m.id ? '#1F5BD8' : 'transparent',
-                            color: visualMode === m.id ? '#FFFFFF' : '#CBD5E1',
-                        }}
+                        className={`btn btn-sm ${
+                            visualMode === m.id ? 'btn-primary' : 'btn-ghost'
+                        }`}
+                        style={{ height: '28px', padding: '0 10px', fontSize: '0.75rem' }}
                     >
                         {m.label}
                     </button>
@@ -544,15 +509,8 @@ export default function SimulationView({
                 <button
                     type="button"
                     onClick={() => setWireframe((w) => !w)}
-                    style={{
-                        padding: '4px 8px',
-                        borderRadius: 'var(--radius-xs)',
-                        border: '1px solid rgba(148, 163, 184, 0.25)',
-                        fontSize: '0.75rem',
-                        cursor: 'pointer',
-                        background: wireframe ? 'rgba(59, 130, 246, 0.25)' : 'transparent',
-                        color: '#E2E8F0',
-                    }}
+                    className={`btn btn-sm ${wireframe ? 'btn-primary' : 'btn-secondary'}`}
+                    style={{ height: '28px', padding: '0 10px', fontSize: '0.75rem' }}
                 >
                     Mesh
                 </button>
@@ -570,39 +528,27 @@ export default function SimulationView({
                     justifyContent: 'space-between',
                     pointerEvents: 'none',
                     fontSize: '0.75rem',
-                    color: '#94A3B8',
+                    color: 'var(--glass-text-soft)',
                 }}
             >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                     <span>
-                        <kbd className="vg-kbd" style={{ background: '#1E293B', color: '#E2E8F0', borderColor: '#334155' }}>
-                            1
-                        </kbd>{' '}
-                        Span
+                        <kbd className="vg-kbd">1</kbd> Span
                     </span>
                     <span>
-                        <kbd className="vg-kbd" style={{ background: '#1E293B', color: '#E2E8F0', borderColor: '#334155' }}>
-                            3
-                        </kbd>{' '}
-                        Chord
+                        <kbd className="vg-kbd">3</kbd> Chord
                     </span>
                     <span>
-                        <kbd className="vg-kbd" style={{ background: '#1E293B', color: '#E2E8F0', borderColor: '#334155' }}>
-                            7
-                        </kbd>{' '}
-                        Planform
+                        <kbd className="vg-kbd">7</kbd> Planform
                     </span>
                     <span>
-                        <kbd className="vg-kbd" style={{ background: '#1E293B', color: '#E2E8F0', borderColor: '#334155' }}>
-                            R
-                        </kbd>{' '}
-                        Reset
+                        <kbd className="vg-kbd">R</kbd> Reset
                     </span>
                 </div>
                 <span
                     ref={camHudRef}
                     className="vg-tabular"
-                    style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: '#64748B' }}
+                    style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--glass-muted)' }}
                 >
                     Cam (2.4, 1.5, 4.2)
                 </span>

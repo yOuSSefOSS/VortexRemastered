@@ -714,21 +714,25 @@ export default function AircraftViewer3D({
 
   return (
     <div
-      style={{ width: '100%', height: '100%', position: 'relative', background: '#07090E', overflow: 'hidden' }}
-      className="relative w-full h-full bg-[#07090E] select-none overflow-hidden"
+      style={{ width: '100%', height: '100%', position: 'relative', background: 'var(--scene-bg)', overflow: 'hidden' }}
+      className="relative w-full h-full select-none overflow-hidden"
     >
       <Canvas
         dpr={[1, 1.5]}
         camera={{ position: effectiveCamPos, fov: 42, near: 0.1, far: 100 }}
         gl={{ powerPreference: 'high-performance', antialias: true }}
       >
-        <color attach="background" args={['#07090E']} />
-        <ambientLight intensity={0.85} />
-        <directionalLight position={[8, 12, 8]} intensity={1.45} />
-        <directionalLight position={[-8, -4, -6]} intensity={0.55} color="#4F8BFF" />
+        <ambientLight intensity={0.95} />
+        <directionalLight position={[8, 12, 8]} intensity={1.55} />
+        <directionalLight position={[-8, -4, -6]} intensity={0.6} color="#4F8BFF" />
 
         {/* Orbital Reference CAD Floor Grid */}
-        <gridHelper args={[28, 28, '#1E293B', '#0F172A']} position={[0, -1.85, 0]} />
+        <gridHelper
+          args={[28, 28, '#2E8BFF', '#334155']}
+          position={[0, -1.85, 0]}
+          material-opacity={0.22}
+          material-transparent
+        />
 
         {isEngineView ? (
           <CutawayTurbofanMesh

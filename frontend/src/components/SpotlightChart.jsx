@@ -34,9 +34,11 @@ export default function SpotlightChart({
 
     const activeModeConfig = CHART_MODES.find((m) => m.id === chartMode) || CHART_MODES[0];
     const primaryCode = formatNacaCode(shape.camber, shape.maxCamberLoc, shape.thickness);
-    const baselineShape = compareShape || { camber: 0, maxCamberLoc: 0, thickness: 12 };
+    const baseCamber = compareShape?.camber ?? 0;
+    const baseMaxCamberLoc = compareShape?.maxCamberLoc ?? 0;
+    const baseThickness = compareShape?.thickness ?? 12;
     const baselineCode = compareShape
-        ? formatNacaCode(compareShape.camber, compareShape.maxCamberLoc, compareShape.thickness)
+        ? formatNacaCode(baseCamber, baseMaxCamberLoc, baseThickness)
         : 'NACA 0012 baseline';
 
     // Sweep AoA from -8° to +22° to build smooth polar curves for both primary and baseline
@@ -64,9 +66,9 @@ export default function SpotlightChart({
             });
 
             const rawBaseline = computeAnalyticalAero(
-                baselineShape.camber,
-                baselineShape.maxCamberLoc,
-                baselineShape.thickness,
+                baseCamber,
+                baseMaxCamberLoc,
+                baseThickness,
                 alpha,
                 reynolds
             );
@@ -82,7 +84,20 @@ export default function SpotlightChart({
             });
         }
         return points;
-    }, [shape, baselineShape, flapDeg, slatDeg, sweepDeg, aspectRatio, mach, reynolds]);
+    }, [
+        shape.camber,
+        shape.maxCamberLoc,
+        shape.thickness,
+        baseCamber,
+        baseMaxCamberLoc,
+        baseThickness,
+        flapDeg,
+        slatDeg,
+        sweepDeg,
+        aspectRatio,
+        mach,
+        reynolds,
+    ]);
 
     // Compute explicit delta at the current operating AoA
     const currentRow = useMemo(() => {
@@ -189,6 +204,7 @@ export default function SpotlightChart({
                                 borderRadius: 'var(--radius-xs)',
                                 fontSize: '0.75rem',
                                 fontVariantNumeric: 'tabular-nums',
+                                color: 'var(--text-primary)',
                             }}
                             labelFormatter={(label) =>
                                 activeModeConfig.xKey === 'cd'
@@ -208,7 +224,7 @@ export default function SpotlightChart({
                             type="monotone"
                             dataKey={`baseline_${activeModeConfig.yKey}`}
                             name={baselineCode}
-                            stroke="var(--neutral-400)"
+                            stroke="var(--text-tertiary)"
                             strokeWidth={1.75}
                             strokeDasharray="4 4"
                             dot={false}
@@ -230,4 +246,3 @@ export default function SpotlightChart({
         </div>
     );
 }
-

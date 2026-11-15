@@ -59,7 +59,8 @@ function buildObstacleLocalPoly(obs, m = 2, p = 4, t = 12) {
   const useM = obs.isPrimary ? m : obs.m ?? 2;
   const useP = obs.isPrimary ? p : obs.p ?? 4;
   const useT = obs.isPrimary ? t : obs.t ?? 12;
-  const { boundary } = generateNaca4Coordinates(useM, useP, useT, 32);
+  const naca = generateNaca4Coordinates(useM, useP, useT, 32);
+  const boundary = naca?.boundary || naca?.coordinates || [];
   // NACA x is 0..1, y is positive up; in screen/grid space y-down is positive, so flip y
   return boundary.map((pt) => ({
     x: pt.x - 0.5,
@@ -899,27 +900,24 @@ export default function NavierStokesTunnel2D({
 
         {/* Top-Left Live Solver Telemetry Overlay */}
         <div
-          className="mono"
+          className="vg-glass mono"
           style={{
             position: 'absolute',
             top: '10px',
             left: '12px',
-            background: 'rgba(7, 10, 18, 0.82)',
-            backdropFilter: 'blur(8px)',
-            border: '1px solid rgba(148, 163, 184, 0.25)',
-            borderRadius: '3px',
-            padding: '6px 10px',
+            padding: '6px 12px',
             fontSize: '10px',
-            color: '#CBD5E1',
+            color: 'var(--glass-text)',
             pointerEvents: 'none',
             display: 'flex',
             gap: '12px',
+            flexWrap: 'wrap',
           }}
         >
           <span>GRID: {NX}×{NY} EULERIAN MAC</span>
-          <span style={{ color: '#00E5FF' }}>V∞: {velocityMs} m/s</span>
-          <span style={{ color: '#22C55E' }}>α: {aoa.toFixed(1)}°</span>
-          <span>DRAG BODY OR GREEN RING TO ROTATE</span>
+          <span style={{ color: 'var(--accent-primary)', fontWeight: 700 }}>V∞: {velocityMs} m/s</span>
+          <span style={{ color: 'var(--status-success)', fontWeight: 700 }}>α: {aoa.toFixed(1)}°</span>
+          <span style={{ color: 'var(--glass-muted)' }}>DRAG BODY OR GREEN RING TO ROTATE</span>
         </div>
       </div>
 

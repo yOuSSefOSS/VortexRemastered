@@ -74,7 +74,7 @@ export default function CockpitLab() {
     const [aircraftModelMode, setAircraftModelMode] = useState('f16'); // 'f16' | 'transport'
     const [f16Explode, setF16Explode] = useState(0.0);
     const [f16Flight, setF16Flight] = useState(false);
-    const [selectedF16Part, setSelectedF16Part] = useState('radome');
+    const [selectedF16Part, setSelectedF16Part] = useState(null);
     const [tunnelDimension, setTunnelDimension] = useState('2d_cfd'); // '2d_cfd' | '3d_wing'
 
     const [flapDeg, setFlapDeg] = useState(10);
@@ -689,6 +689,7 @@ export default function CockpitLab() {
                         >
                             {/* Top-Left Aircraft Rig Selector (F-16 Falcon vs Transport Airliner) */}
                             <div
+                                className="vg-glass"
                                 style={{
                                     position: 'absolute',
                                     top: '12px',
@@ -697,11 +698,7 @@ export default function CockpitLab() {
                                     display: 'flex',
                                     gap: '6px',
                                     flexWrap: 'wrap',
-                                    background: 'rgba(8, 12, 20, 0.86)',
-                                    backdropFilter: 'blur(10px)',
-                                    border: '1px solid rgba(148, 163, 184, 0.28)',
-                                    borderRadius: '4px',
-                                    padding: '6px',
+                                    padding: '6px 8px',
                                 }}
                             >
                                 <button
@@ -728,6 +725,16 @@ export default function CockpitLab() {
                                     <>
                                         <button
                                             type="button"
+                                            onClick={() => setSelectedF16Part(null)}
+                                            className={`btn btn-sm ${
+                                                selectedF16Part === null ? 'btn-primary' : 'btn-secondary'
+                                            }`}
+                                            style={{ fontSize: '11px' }}
+                                        >
+                                            Free Orbit
+                                        </button>
+                                        <button
+                                            type="button"
                                             onClick={() => {
                                                 setF16Flight(false);
                                                 setF16Explode((v) => (v > 0.5 ? 0.0 : 1.0));
@@ -747,7 +754,7 @@ export default function CockpitLab() {
                                                 });
                                             }}
                                             className={`btn btn-sm ${
-                                                f16Flight ? 'btn-primary' : 'btn-secondary'
+                                                f16Flight ? 'vg-btn-gold' : 'vg-btn-gold-outline'
                                             }`}
                                             style={{ fontSize: '11px' }}
                                         >

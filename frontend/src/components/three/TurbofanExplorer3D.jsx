@@ -956,13 +956,12 @@ function TurbofanAssemblyScene({
                     onSelectStage(stg.id);
                   }}
                   style={{
-                    background: isSelected
-                      ? 'rgba(7, 11, 18, 0.95)'
-                      : 'rgba(13, 18, 28, 0.82)',
-                    border: `1px solid ${isSelected ? stg.phaseColor : 'rgba(148, 163, 184, 0.35)'}`,
-                    borderRadius: '3px',
-                    padding: '3px 8px',
-                    color: isSelected ? '#F8FAFC' : '#CBD5E1',
+                    background: 'var(--glass-bg-strong)',
+                    backdropFilter: 'blur(12px)',
+                    border: `1px solid ${isSelected ? stg.phaseColor : 'var(--glass-border)'}`,
+                    borderRadius: '999px',
+                    padding: '4px 10px',
+                    color: isSelected ? stg.phaseColor : 'var(--glass-text)',
                     fontFamily: 'var(--font-mono)',
                     fontSize: '10px',
                     fontWeight: 700,
@@ -972,7 +971,7 @@ function TurbofanAssemblyScene({
                     display: 'flex',
                     alignItems: 'center',
                     gap: '5px',
-                    boxShadow: isSelected ? `0 0 14px ${stg.phaseColor}55` : 'none',
+                    boxShadow: isSelected ? `0 0 14px ${stg.phaseColor}55` : 'var(--shadow-sm)',
                   }}
                 >
                   <span
@@ -1068,12 +1067,10 @@ export default function TurbofanExplorer3D({
         position: 'relative',
         width: '100%',
         height,
-        borderRadius: 'var(--radius-md)',
+        borderRadius: 'var(--radius-lg)',
         overflow: 'hidden',
         border: '1px solid var(--border-subtle)',
-        background: skyBackdrop
-          ? 'linear-gradient(180deg, #1E293B 0%, #334155 38%, #64748B 68%, #94A3B8 84%, #1E293B 100%)'
-          : 'radial-gradient(circle at 50% 45%, #111827 0%, #07090E 100%)',
+        background: skyBackdrop ? 'var(--scene-sky)' : 'var(--scene-bg)',
       }}
     >
       {/* ================================================================= */}
@@ -1104,12 +1101,9 @@ export default function TurbofanExplorer3D({
           }}
         >
           <div
+            className="vg-glass"
             style={{
-              background: 'rgba(9, 13, 22, 0.86)',
-              backdropFilter: 'blur(10px)',
-              border: '1px solid rgba(148, 163, 184, 0.28)',
-              borderRadius: '4px',
-              padding: '8px 14px',
+              padding: '10px 14px',
             }}
           >
             <div
@@ -1118,12 +1112,12 @@ export default function TurbofanExplorer3D({
                 fontSize: '12px',
                 fontWeight: 700,
                 letterSpacing: '0.14em',
-                color: '#F8FAFC',
+                color: 'var(--glass-text)',
               }}
             >
               TURBOFAN EXPLORER
             </div>
-            <div style={{ fontSize: '11px', color: '#94A3B8', marginTop: '2px' }}>
+            <div style={{ fontSize: '11px', color: 'var(--glass-text-soft)', marginTop: '2px' }}>
               Suck · Squeeze · Bang · Blow — Two-Spool High-Bypass Cutaway
             </div>
           </div>
@@ -1147,11 +1141,12 @@ export default function TurbofanExplorer3D({
                     fontSize: '11px',
                     fontWeight: 700,
                     letterSpacing: '0.1em',
-                    borderRadius: '4px',
+                    borderRadius: 'var(--radius-pill)',
                     cursor: 'pointer',
-                    background: isActive ? p.color : 'rgba(9, 13, 22, 0.82)',
-                    color: isActive ? '#06080C' : '#E2E8F0',
-                    border: `1px solid ${isActive ? p.color : 'rgba(148, 163, 184, 0.35)'}`,
+                    background: isActive ? p.color : 'var(--glass-bg-strong)',
+                    color: isActive ? '#06080C' : 'var(--glass-text)',
+                    border: `1px solid ${isActive ? p.color : 'var(--glass-border)'}`,
+                    backdropFilter: 'blur(12px)',
                   }}
                 >
                   {p.id}
@@ -1161,14 +1156,11 @@ export default function TurbofanExplorer3D({
           </div>
         </div>
 
-        {/* Right Engine Controls Card (Matches Video 2 Top-Right Controls) */}
+        {/* Right Engine Controls Card */}
         <div
+          className="vg-glass"
           style={{
-            background: 'rgba(9, 13, 22, 0.88)',
-            backdropFilter: 'blur(10px)',
-            border: '1px solid rgba(148, 163, 184, 0.3)',
-            borderRadius: '4px',
-            padding: '10px 12px',
+            padding: '10px 14px',
             display: 'flex',
             flexDirection: 'column',
             gap: '8px',
@@ -1181,13 +1173,13 @@ export default function TurbofanExplorer3D({
             style={{
               fontSize: '10px',
               letterSpacing: '0.12em',
-              color: '#94A3B8',
+              color: 'var(--glass-muted)',
               display: 'flex',
               justifyContent: 'space-between',
             }}
           >
             <span>ENGINE CONTROLS</span>
-            <span style={{ color: '#00E5FF' }}>BPR {bypassRatio}:1</span>
+            <span style={{ color: 'var(--accent-primary)', fontWeight: 700 }}>BPR {bypassRatio}:1</span>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
             <button
@@ -1231,7 +1223,7 @@ export default function TurbofanExplorer3D({
               className="btn btn-secondary btn-sm"
               style={{ fontSize: '11px' }}
             >
-              {skyBackdrop ? 'Sky horizon' : 'Dark hangar'}
+              {skyBackdrop ? 'Sky horizon' : 'Hangar studio'}
             </button>
           </div>
 
@@ -1243,12 +1235,12 @@ export default function TurbofanExplorer3D({
                 display: 'flex',
                 justifyContent: 'space-between',
                 fontSize: '10px',
-                color: '#CBD5E1',
+                color: 'var(--glass-text-soft)',
                 marginBottom: '3px',
               }}
             >
               <span>AXIAL STAGE SEPARATION</span>
-              <span style={{ color: '#00E5FF' }}>{Math.round(explodeFactor * 100)}%</span>
+              <span style={{ color: 'var(--accent-primary)', fontWeight: 700 }}>{Math.round(explodeFactor * 100)}%</span>
             </div>
             <input
               type="range"
@@ -1332,12 +1324,9 @@ export default function TurbofanExplorer3D({
       >
         {/* Stage Caption & Thermodynamic Readout Card */}
         <div
+          className="vg-glass"
           style={{
-            background: 'rgba(8, 12, 20, 0.9)',
-            backdropFilter: 'blur(12px)',
-            border: '1px solid rgba(148, 163, 184, 0.28)',
             borderLeft: `3px solid ${activeStage.phaseColor}`,
-            borderRadius: '4px',
             padding: '10px 14px',
             maxWidth: '680px',
             pointerEvents: 'auto',
@@ -1358,37 +1347,35 @@ export default function TurbofanExplorer3D({
                 className="mono"
                 style={{
                   fontSize: '10px',
-                  padding: '2px 6px',
-                  borderRadius: '2px',
+                  padding: '2px 8px',
+                  borderRadius: '999px',
                   background: `${activeStage.phaseColor}22`,
                   color: activeStage.phaseColor,
                   border: `1px solid ${activeStage.phaseColor}66`,
+                  fontWeight: 700,
                 }}
               >
                 {activeStage.phase} · {activeStage.code}
               </span>
-              <strong style={{ fontSize: '13px', color: '#F8FAFC' }}>
+              <strong style={{ fontSize: '13px', color: 'var(--glass-text)' }}>
                 {tourPlaying ? currentTourSegment.title : activeStage.name}
               </strong>
             </div>
-            <div className="mono" style={{ fontSize: '11px', color: '#94A3B8' }}>
+            <div className="mono" style={{ fontSize: '11px', color: 'var(--glass-muted)' }}>
               {activeStage.shaft} ·{' '}
-              <span style={{ color: '#F59E0B' }}>{activeStage.tempK} K</span> ·{' '}
-              <span style={{ color: '#00E5FF' }}>PR {activeStage.pressureRatio}</span>
+              <span style={{ color: 'var(--accent-gold)', fontWeight: 600 }}>{activeStage.tempK} K</span> ·{' '}
+              <span style={{ color: 'var(--accent-primary)', fontWeight: 600 }}>PR {activeStage.pressureRatio}</span>
             </div>
           </div>
-          <p style={{ fontSize: '12px', color: '#CBD5E1', lineHeight: 1.5, margin: 0 }}>
+          <p style={{ fontSize: '12px', color: 'var(--glass-text-soft)', lineHeight: 1.5, margin: 0 }}>
             {tourPlaying ? currentTourSegment.caption : activeStage.summary}
           </p>
         </div>
 
-        {/* Guided Tour Scrubber Bar (Play / Pause · 0.0s / 28.0s · Follow Camera · Speed) */}
+        {/* Guided Tour Scrubber Bar */}
         <div
+          className="vg-glass"
           style={{
-            background: 'rgba(8, 12, 20, 0.92)',
-            backdropFilter: 'blur(12px)',
-            border: '1px solid rgba(148, 163, 184, 0.28)',
-            borderRadius: '4px',
             padding: '8px 14px',
             display: 'flex',
             alignItems: 'center',
@@ -1406,12 +1393,12 @@ export default function TurbofanExplorer3D({
               setTourPlaying((p) => !p);
             }}
             className="btn btn-primary btn-sm"
-            style={{ minWidth: '76px' }}
+            style={{ minWidth: '86px' }}
           >
             {tourPlaying ? '❚❚ Pause' : '▶ Play Tour'}
           </button>
 
-          <span className="mono" style={{ fontSize: '11px', color: '#E2E8F0', minWidth: '88px' }}>
+          <span className="mono" style={{ fontSize: '11px', color: 'var(--glass-text)', minWidth: '88px', fontWeight: 600 }}>
             {tourTime.toFixed(1)}s / 28.0s
           </span>
 
@@ -1449,18 +1436,10 @@ export default function TurbofanExplorer3D({
                 key={spd}
                 type="button"
                 onClick={() => setPlaybackSpeed(spd)}
-                className="mono"
-                style={{
-                  padding: '4px 8px',
-                  fontSize: '10px',
-                  borderRadius: '3px',
-                  cursor: 'pointer',
-                  background:
-                    playbackSpeed === spd ? '#00E5FF' : 'rgba(30, 41, 59, 0.75)',
-                  color: playbackSpeed === spd ? '#06080C' : '#CBD5E1',
-                  border: '1px solid rgba(148, 163, 184, 0.3)',
-                  fontWeight: 700,
-                }}
+                className={`btn btn-sm ${
+                  playbackSpeed === spd ? 'btn-primary' : 'btn-secondary'
+                }`}
+                style={{ padding: '0 10px', height: '28px', fontSize: '10px' }}
               >
                 {spd}x
               </button>

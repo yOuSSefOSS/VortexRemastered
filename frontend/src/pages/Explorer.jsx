@@ -12,6 +12,7 @@ import {
   Compass,
   BookOpen,
   X,
+  Move3d,
 } from 'lucide-react';
 import AircraftViewer3D from '../components/AircraftViewer3D';
 import F16FalconAssembly, { F16_PARTS } from '../components/three/F16FalconAssembly';
@@ -20,7 +21,6 @@ import SubsystemDrawer from '../components/hangar/SubsystemDrawer';
 import { HANGAR_SUBSYSTEMS, getSubsystemById } from '../data/hangarCurriculum';
 import { useApp } from '../context/AppContext';
 import {
-  computeTurbofanPerformance,
   computeLongitudinalStability,
 } from '../domain/flightMechanics';
 import { computeISAAtmosphere } from '../domain/isaAtmosphere';
@@ -56,13 +56,14 @@ export default function Explorer() {
   } = useApp();
 
   // Primary exhibit mode:
-  // 'f16' (Video 1: AERO / ARCHIVE F-16 12-Part Disassembly)
-  // 'engine' (Video 2: TURBOFAN EXPLORER Suck · Squeeze · Bang · Blow)
+  // 'f16' (AERO / ARCHIVE F-16 12-Part Disassembly)
+  // 'engine' (TURBOFAN EXPLORER Suck · Squeeze · Bang · Blow)
   // 'aircraft' (Commercial Transport Airliner 5-Subsystem Rig)
   const [viewSubject, setViewSubject] = useState('f16');
 
-  // F-16 Disassembly Exhibit State (Video 1)
-  const [selectedF16PartId, setSelectedF16PartId] = useState('radome');
+  // F-16 Disassembly Exhibit State
+  // Default to `null` (Free Orbit / No Selection) so the user can move freely!
+  const [selectedF16PartId, setSelectedF16PartId] = useState(null);
   const [f16ExplodeFactor, setF16ExplodeFactor] = useState(0.0);
   const [f16FlightMode, setF16FlightMode] = useState(false);
   const [f16CameraView, setF16CameraView] = useState('overview');
@@ -72,7 +73,7 @@ export default function Explorer() {
   const [selectedId, setSelectedId] = useState(routeSubsystemId || 'wings');
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [rigState, setRigState] = useState(DEFAULT_RIG_STATE);
-  const [showVectorOverlay, setShowVectorOverlay] = useState(true);
+  const [showVectorOverlay] = useState(true);
   const [wireframeMode, setWireframeMode] = useState(false);
 
   // Access / Event Code unlock modal state
@@ -109,13 +110,14 @@ export default function Explorer() {
   }, [searchParams]);
 
   const activeF16Part = useMemo(
-    () => F16_PARTS.find((p) => p.id === selectedF16PartId) || F16_PARTS[0],
+    () => (selectedF16PartId ? F16_PARTS.find((p) => p.id === selectedF16PartId) || null : null),
     [selectedF16PartId]
   );
 
   // Map F-16 part to closest curriculum subsystem when user opens curriculum drawer
   const handleSelectF16Part = (partId) => {
     setSelectedF16PartId(partId);
+    if (!partId) return;
     const part = F16_PARTS.find((p) => p.id === partId);
     if (part?.subsystemMap && canAccessSubsystem(part.subsystemMap)) {
       setSelectedId(part.subsystemMap);
@@ -171,7 +173,7 @@ export default function Explorer() {
 
   const activeSubsystem = getSubsystemById(selectedId) || HANGAR_SUBSYSTEMS[0];
 
-  // Live physics telemetry for Transport Airliner & Turbofan HUD
+  // Live physics telemetry for Transport Airliner HUD
   const isa = computeISAAtmosphere(rigState.altitudeMeters);
   const stability = computeLongitudinalStability({
     cgPercentMac: rigState.cgPercentMac,
@@ -180,22 +182,16 @@ export default function Explorer() {
     elevatorDeg: rigState.elevatorDeg,
     clWing: 0.55 + rigState.aoaDeg * 0.09 + rigState.flapDeg * 0.018,
   });
-  const engineTelemetry = computeTurbofanPerformance({
-    throttlePct: rigState.throttlePct,
-    bypassRatio: rigState.bypassRatio,
-    mach: rigState.mach,
-    altitudeMeters: rigState.altitudeMeters,
-  });
 
   return (
     <div
       style={{
         position: 'relative',
         width: '100%',
-        height: 'calc(100vh - 56px)',
+        height: 'calc(100vh - 60px)',
         display: 'flex',
         overflow: 'hidden',
-        background: 'var(--viewport-3d-bg)',
+        background: 'var(--scene-bg)',
       }}
     >
       {/* =================================================================== */}
@@ -204,6 +200,7 @@ export default function Explorer() {
       <div style={{ flex: 1, position: 'relative', height: '100%', minWidth: 0 }}>
         {/* Top Exhibit Mode Switcher Bar */}
         <div
+          className="vg-glass"
           style={{
             position: 'absolute',
             top: '14px',
@@ -212,60 +209,32 @@ export default function Explorer() {
             display: 'flex',
             flexWrap: 'wrap',
             alignItems: 'center',
-            gap: '8px',
-            padding: '6px',
-            background: 'rgba(8, 12, 20, 0.88)',
-            backdropFilter: 'blur(12px)',
-            border: '1px solid rgba(148, 163, 184, 0.28)',
-            borderRadius: 'var(--radius-md)',
+            gap: '6px',
+            padding: '6px 8px',
           }}
         >
           <button
             type="button"
             onClick={() => setViewSubject('f16')}
-            className="mono"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '6px 12px',
-              borderRadius: '4px',
-              border: 'none',
-              cursor: 'pointer',
-              fontSize: '11px',
-              fontWeight: 700,
-              letterSpacing: '0.08em',
-              background:
-                viewSubject === 'f16' ? 'var(--accent-primary)' : 'transparent',
-              color: viewSubject === 'f16' ? '#05070B' : '#CBD5E1',
-            }}
+            className={`btn btn-sm ${
+              viewSubject === 'f16' ? 'btn-primary' : 'btn-ghost'
+            }`}
+            style={{ fontSize: '11.5px' }}
           >
             <Plane size={14} />
-            AERO / ARCHIVE · F-16 FALCON
+            F-16 Fighting Falcon
           </button>
 
           <button
             type="button"
             onClick={() => setViewSubject('engine')}
-            className="mono"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '6px 12px',
-              borderRadius: '4px',
-              border: 'none',
-              cursor: 'pointer',
-              fontSize: '11px',
-              fontWeight: 700,
-              letterSpacing: '0.08em',
-              background:
-                viewSubject === 'engine' ? 'var(--accent-primary)' : 'transparent',
-              color: viewSubject === 'engine' ? '#05070B' : '#CBD5E1',
-            }}
+            className={`btn btn-sm ${
+              viewSubject === 'engine' ? 'btn-primary' : 'btn-ghost'
+            }`}
+            style={{ fontSize: '11.5px' }}
           >
             <Fan size={14} />
-            TURBOFAN EXPLORER · 8-STAGE
+            Turbofan Explorer (8-Stage)
           </button>
 
           <button
@@ -274,59 +243,36 @@ export default function Explorer() {
               setViewSubject('aircraft');
               setDrawerOpen(true);
             }}
-            className="mono"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '6px 12px',
-              borderRadius: '4px',
-              border: 'none',
-              cursor: 'pointer',
-              fontSize: '11px',
-              fontWeight: 700,
-              letterSpacing: '0.08em',
-              background:
-                viewSubject === 'aircraft' ? 'var(--accent-primary)' : 'transparent',
-              color: viewSubject === 'aircraft' ? '#05070B' : '#CBD5E1',
-            }}
+            className={`btn btn-sm ${
+              viewSubject === 'aircraft' ? 'btn-primary' : 'btn-ghost'
+            }`}
+            style={{ fontSize: '11.5px' }}
           >
             <Compass size={14} />
-            TRANSPORT AIRLINER RIG
+            Transport Airliner Rig
           </button>
 
           <div
             style={{
               width: '1px',
               height: '20px',
-              background: 'rgba(148, 163, 184, 0.25)',
+              background: 'var(--glass-border)',
             }}
           />
 
           <button
             type="button"
             onClick={() => setDrawerOpen((d) => !d)}
-            className="mono"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '6px 10px',
-              borderRadius: '4px',
-              border: '1px solid rgba(148, 163, 184, 0.3)',
-              background: drawerOpen ? 'rgba(0, 229, 255, 0.16)' : 'transparent',
-              color: '#E2E8F0',
-              fontSize: '11px',
-              cursor: 'pointer',
-            }}
+            className={`btn btn-sm ${drawerOpen ? 'btn-primary' : 'btn-secondary'}`}
+            style={{ fontSize: '11.5px' }}
           >
             <BookOpen size={13} />
-            Curriculum & Quiz
+            Curriculum &amp; Quiz
           </button>
         </div>
 
         {/* =============================================================== */}
-        {/* VIEW 1: F-16 FIGHTING FALCON 12-PART DISASSEMBLY (VIDEO 1)      */}
+        {/* VIEW 1: F-16 FIGHTING FALCON 12-PART DISASSEMBLY                */}
         {/* =============================================================== */}
         {viewSubject === 'f16' && (
           <>
@@ -346,7 +292,7 @@ export default function Explorer() {
               }}
             />
 
-            {/* Bottom-Left Interactive Disassembly & Flight Controls Bar (Video 1) */}
+            {/* Bottom Interactive Disassembly & Flight Controls Bar */}
             <div
               style={{
                 position: 'absolute',
@@ -362,13 +308,10 @@ export default function Explorer() {
                 pointerEvents: 'none',
               }}
             >
-              {/* Explode / Reassemble + Launch Flight + Explosion Slider */}
+              {/* Free Orbit + Explode / Reassemble + Launch Flight + Explosion Slider */}
               <div
+                className="vg-glass"
                 style={{
-                  background: 'rgba(8, 12, 20, 0.9)',
-                  backdropFilter: 'blur(12px)',
-                  border: '1px solid rgba(148, 163, 184, 0.3)',
-                  borderRadius: 'var(--radius-md)',
                   padding: '12px 16px',
                   display: 'flex',
                   flexDirection: 'column',
@@ -378,6 +321,18 @@ export default function Explorer() {
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedF16PartId(null)}
+                    className={`btn btn-sm ${
+                      selectedF16PartId === null ? 'btn-primary' : 'btn-secondary'
+                    }`}
+                    title="Clear part selection to orbit and move the camera freely"
+                  >
+                    <Move3d size={14} />
+                    Free Orbit
+                  </button>
+
                   <button
                     type="button"
                     onClick={() => {
@@ -402,17 +357,8 @@ export default function Explorer() {
                       });
                     }}
                     className={`btn btn-sm ${
-                      f16FlightMode ? 'btn-primary' : 'btn-secondary'
+                      f16FlightMode ? 'vg-btn-gold' : 'vg-btn-gold-outline'
                     }`}
-                    style={
-                      f16FlightMode
-                        ? {
-                            background: '#F97316',
-                            borderColor: '#F97316',
-                            color: '#05070B',
-                          }
-                        : {}
-                    }
                   >
                     <Flame size={14} />
                     {f16FlightMode ? 'Exit Flight Mode' : 'Launch Flight'}
@@ -445,12 +391,12 @@ export default function Explorer() {
                       display: 'flex',
                       justifyContent: 'space-between',
                       fontSize: '10px',
-                      color: '#94A3B8',
+                      color: 'var(--glass-muted)',
                       marginBottom: '4px',
                     }}
                   >
                     <span>DISASSEMBLY EXPLOSION VECTOR</span>
-                    <span style={{ color: 'var(--accent-primary)' }}>
+                    <span style={{ color: 'var(--accent-primary)', fontWeight: 600 }}>
                       {Math.round(f16ExplodeFactor * 100)}%
                     </span>
                   </div>
@@ -470,15 +416,13 @@ export default function Explorer() {
 
               {/* Camera Aspect Presets (Overview / Top / Side / Front) */}
               <div
+                className="vg-glass"
                 style={{
-                  background: 'rgba(8, 12, 20, 0.9)',
-                  backdropFilter: 'blur(12px)',
-                  border: '1px solid rgba(148, 163, 184, 0.3)',
-                  borderRadius: 'var(--radius-md)',
                   padding: '8px',
                   display: 'flex',
                   gap: '6px',
                   pointerEvents: 'auto',
+                  flexWrap: 'wrap',
                 }}
               >
                 {[
@@ -490,9 +434,14 @@ export default function Explorer() {
                   <button
                     key={cam.id}
                     type="button"
-                    onClick={() => setF16CameraView(cam.id)}
+                    onClick={() => {
+                      setSelectedF16PartId(null);
+                      setF16CameraView(cam.id);
+                    }}
                     className={`btn btn-sm ${
-                      f16CameraView === cam.id ? 'btn-primary' : 'btn-secondary'
+                      f16CameraView === cam.id && !selectedF16PartId
+                        ? 'btn-primary'
+                        : 'btn-secondary'
                     }`}
                     style={{ fontSize: '11px' }}
                   >
@@ -505,14 +454,14 @@ export default function Explorer() {
         )}
 
         {/* =============================================================== */}
-        {/* VIEW 2: TURBOFAN EXPLORER 3D CUTAWAY (VIDEO 2)                  */}
+        {/* VIEW 2: TURBOFAN EXPLORER 3D CUTAWAY                            */}
         {/* =============================================================== */}
         {viewSubject === 'engine' && (
           <div style={{ width: '100%', height: '100%', paddingTop: '58px' }}>
             <TurbofanExplorer3D
               throttlePct={rigState.throttlePct}
               bypassRatio={rigState.bypassRatio}
-              height="calc(100vh - 114px)"
+              height="calc(100vh - 118px)"
             />
           </div>
         )}
@@ -533,6 +482,7 @@ export default function Explorer() {
 
             {/* Compact Live Telemetry Readout */}
             <div
+              className="vg-glass"
               style={{
                 position: 'absolute',
                 top: '68px',
@@ -540,29 +490,24 @@ export default function Explorer() {
                 zIndex: 20,
                 display: 'grid',
                 gridTemplateColumns: 'repeat(4, auto)',
-                gap: '16px',
-                padding: '10px 16px',
-                background: 'var(--viewport-3d-panel)',
-                backdropFilter: 'blur(12px)',
-                border: '1px solid var(--viewport-3d-border)',
-                borderRadius: 'var(--radius-md)',
-                color: '#F8FAFC',
+                gap: '18px',
+                padding: '10px 18px',
               }}
             >
               <div>
-                <div style={{ fontSize: '0.6875rem', color: '#94A3B8' }}>ISA altitude</div>
-                <div className="vg-tabular" style={{ fontSize: '0.875rem', fontWeight: 600 }}>
+                <div style={{ fontSize: '0.6875rem', color: 'var(--glass-muted)' }}>ISA altitude</div>
+                <div className="vg-tabular" style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--glass-text)' }}>
                   {Math.round(rigState.altitudeMeters).toLocaleString()} m
                 </div>
               </div>
               <div>
-                <div style={{ fontSize: '0.6875rem', color: '#94A3B8' }}>Static margin</div>
+                <div style={{ fontSize: '0.6875rem', color: 'var(--glass-muted)' }}>Static margin</div>
                 <div
                   className="vg-tabular"
                   style={{
                     fontSize: '0.875rem',
                     fontWeight: 600,
-                    color: stability.isStable ? '#34D399' : '#F87171',
+                    color: stability.isStable ? 'var(--status-success)' : 'var(--status-danger)',
                   }}
                 >
                   {stability.staticMarginPct > 0 ? '+' : ''}
@@ -570,14 +515,14 @@ export default function Explorer() {
                 </div>
               </div>
               <div>
-                <div style={{ fontSize: '0.6875rem', color: '#94A3B8' }}>Flaps / slats</div>
-                <div className="vg-tabular" style={{ fontSize: '0.875rem', fontWeight: 600 }}>
+                <div style={{ fontSize: '0.6875rem', color: 'var(--glass-muted)' }}>Flaps / slats</div>
+                <div className="vg-tabular" style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--glass-text)' }}>
                   {rigState.flapDeg}° / {rigState.slatDeg}°
                 </div>
               </div>
               <div>
-                <div style={{ fontSize: '0.6875rem', color: '#94A3B8' }}>Air density ρ</div>
-                <div className="vg-tabular" style={{ fontSize: '0.875rem', fontWeight: 600 }}>
+                <div style={{ fontSize: '0.6875rem', color: 'var(--glass-muted)' }}>Air density ρ</div>
+                <div className="vg-tabular" style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--glass-text)' }}>
                   {isa.densityKgM3.toFixed(3)} kg/m³
                 </div>
               </div>
@@ -585,6 +530,7 @@ export default function Explorer() {
 
             {/* Bottom Subsystem Selector Bar */}
             <div
+              className="vg-glass"
               style={{
                 position: 'absolute',
                 bottom: '20px',
@@ -595,11 +541,6 @@ export default function Explorer() {
                 alignItems: 'center',
                 gap: '8px',
                 padding: '8px',
-                background: 'var(--viewport-3d-panel)',
-                backdropFilter: 'blur(12px)',
-                border: '1px solid var(--viewport-3d-border)',
-                borderRadius: 'var(--radius-lg)',
-                boxShadow: 'var(--shadow-lg)',
                 maxWidth: '95%',
                 overflowX: 'auto',
               }}
@@ -614,38 +555,26 @@ export default function Explorer() {
                     key={sub.id}
                     type="button"
                     onClick={() => handleSelectSubsystem(sub.id)}
+                    className={`btn btn-sm ${
+                      isSelected ? 'btn-primary' : 'btn-secondary'
+                    }`}
                     style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      padding: '8px 14px',
-                      borderRadius: 'var(--radius-sm)',
-                      border: isSelected
-                        ? '1px solid #60A5FA'
-                        : '1px solid rgba(148,163,184,0.18)',
-                      background: isSelected
-                        ? 'rgba(31, 91, 216, 0.35)'
-                        : 'rgba(15, 23, 42, 0.65)',
-                      color: unlocked ? '#F8FAFC' : '#94A3B8',
-                      fontSize: '0.8125rem',
-                      fontWeight: isSelected ? 600 : 500,
-                      cursor: 'pointer',
-                      whiteSpace: 'nowrap',
+                      opacity: unlocked ? 1 : 0.75,
                     }}
                   >
                     <span
+                      className="mono"
                       style={{
                         fontSize: '0.6875rem',
-                        fontFamily: 'var(--font-mono)',
-                        color: isSelected ? '#93C5FD' : '#64748B',
+                        opacity: 0.85,
                       }}
                     >
                       {sub.code}
                     </span>
                     <span>{sub.name}</span>
-                    {!unlocked && <Lock size={13} style={{ color: '#F59E0B' }} />}
+                    {!unlocked && <Lock size={13} style={{ color: 'var(--accent-gold)' }} />}
                     {unlocked && completedQuiz && (
-                      <CheckCircle2 size={13} style={{ color: '#34D399' }} />
+                      <CheckCircle2 size={13} style={{ color: 'var(--status-success)' }} />
                     )}
                   </button>
                 );
@@ -656,7 +585,7 @@ export default function Explorer() {
       </div>
 
       {/* =================================================================== */}
-      {/* RIGHT-SIDE "EVERY PART. A PURPOSE." F-16 INSPECTOR (VIDEO 1 STYLE)  */}
+      {/* RIGHT-SIDE "EVERY PART. A PURPOSE." F-16 INSPECTOR                  */}
       {/* =================================================================== */}
       {viewSubject === 'f16' && !drawerOpen && (
         <aside
@@ -678,16 +607,8 @@ export default function Explorer() {
               borderBottom: '1px solid var(--border-subtle)',
             }}
           >
-            <div
-              className="mono"
-              style={{
-                fontSize: '10px',
-                letterSpacing: '0.14em',
-                color: 'var(--accent-primary)',
-                marginBottom: '6px',
-              }}
-            >
-              AERO / ARCHIVE · GENERAL DYNAMICS F-16C BLOCK 50
+            <div className="vg-eyebrow" style={{ marginBottom: '6px' }}>
+              AERO / ARCHIVE · F-16C BLOCK 50
             </div>
             <h2
               style={{
@@ -695,6 +616,7 @@ export default function Explorer() {
                 fontWeight: 700,
                 margin: '0 0 6px 0',
                 letterSpacing: '-0.02em',
+                color: 'var(--text-primary)',
               }}
             >
               Every part. A purpose.
@@ -707,117 +629,161 @@ export default function Explorer() {
                 lineHeight: 1.55,
               }}
             >
-              Select any callout pin in 3D space or choose an assembly below to inspect its structural, aerodynamic, and avionics architecture.
+              Select any callout pin in 3D space or choose an assembly below to inspect its structural, aerodynamic, and avionics architecture. Click an active part again to return to Free Orbit.
             </p>
           </div>
 
-          {/* Active Part Specification Card */}
+          {/* Active Part Specification Card OR Free Orbit Banner */}
           <div
             style={{
               padding: '20px',
               borderBottom: '1px solid var(--border-subtle)',
-              background: 'var(--bg-elevated)',
+              background: 'var(--bg-subtle)',
             }}
           >
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginBottom: '8px',
-              }}
-            >
-              <span className="badge badge-accent mono">
-                PART {activeF16Part.index} / 12 · {activeF16Part.category}
-              </span>
-              <span className="mono" style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                {activeF16Part.code}
-              </span>
-            </div>
-
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, margin: '0 0 8px 0' }}>
-              {activeF16Part.name}
-            </h3>
-
-            <p
-              style={{
-                fontSize: '0.8125rem',
-                color: 'var(--text-primary)',
-                lineHeight: 1.6,
-                margin: '0 0 10px 0',
-              }}
-            >
-              {activeF16Part.summary}
-            </p>
-
-            <p
-              style={{
-                fontSize: '0.775rem',
-                color: 'var(--text-secondary)',
-                lineHeight: 1.6,
-                margin: '0 0 12px 0',
-              }}
-            >
-              {activeF16Part.engineeringNote || activeF16Part.engineering}
-            </p>
-
-            {activeF16Part.formula && (
-              <div
-                className="mono"
-                style={{
-                  fontSize: '11px',
-                  padding: '8px 10px',
-                  background: 'var(--bg-canvas)',
-                  border: '1px solid var(--border-subtle)',
-                  borderRadius: '4px',
-                  color: 'var(--accent-primary)',
-                  marginBottom: '12px',
-                }}
-              >
-                {activeF16Part.formula}
-              </div>
-            )}
-
-            {/* Technical Specs Grid */}
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '1fr',
-                gap: '6px',
-                borderTop: '1px solid var(--border-subtle)',
-                paddingTop: '12px',
-              }}
-            >
-              {(activeF16Part.specs || []).map((sp) => (
+            {activeF16Part ? (
+              <>
                 <div
-                  key={sp.label}
                   style={{
                     display: 'flex',
                     justifyContent: 'space-between',
-                    fontSize: '12px',
+                    alignItems: 'center',
+                    marginBottom: '8px',
+                    gap: '8px',
                   }}
                 >
-                  <span style={{ color: 'var(--text-muted)' }}>{sp.label}</span>
-                  <span className="mono" style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
-                    {sp.value}
+                  <span className="badge badge-accent mono">
+                    PART {activeF16Part.index} / 12 · {activeF16Part.category}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedF16PartId(null)}
+                    className="btn btn-secondary btn-sm"
+                    style={{ height: '24px', padding: '0 10px', fontSize: '11px' }}
+                  >
+                    Free Orbit (Unlock)
+                  </button>
+                </div>
+
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 700, margin: '0 0 8px 0', color: 'var(--text-primary)' }}>
+                  {activeF16Part.name}
+                </h3>
+
+                <p
+                  style={{
+                    fontSize: '0.8125rem',
+                    color: 'var(--text-primary)',
+                    lineHeight: 1.6,
+                    margin: '0 0 10px 0',
+                  }}
+                >
+                  {activeF16Part.summary}
+                </p>
+
+                <p
+                  style={{
+                    fontSize: '0.775rem',
+                    color: 'var(--text-secondary)',
+                    lineHeight: 1.6,
+                    margin: '0 0 12px 0',
+                  }}
+                >
+                  {activeF16Part.engineeringNote || activeF16Part.engineering}
+                </p>
+
+                {activeF16Part.formula && (
+                  <div
+                    className="mono"
+                    style={{
+                      fontSize: '11px',
+                      padding: '8px 10px',
+                      background: 'var(--bg-canvas)',
+                      border: '1px solid var(--border-subtle)',
+                      borderRadius: 'var(--radius-xs)',
+                      color: 'var(--accent-primary)',
+                      marginBottom: '12px',
+                    }}
+                  >
+                    {activeF16Part.formula}
+                  </div>
+                )}
+
+                {/* Technical Specs Grid */}
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr',
+                    gap: '6px',
+                    borderTop: '1px solid var(--border-subtle)',
+                    paddingTop: '12px',
+                  }}
+                >
+                  {(activeF16Part.specs || []).map((sp) => (
+                    <div
+                      key={sp.label}
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        fontSize: '12px',
+                      }}
+                    >
+                      <span style={{ color: 'var(--text-secondary)' }}>{sp.label}</span>
+                      <span className="mono" style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
+                        {sp.value}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span className="badge badge-accent mono">FREE ORBIT ACTIVE</span>
+                  <span className="mono" style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                    360° UNLOCKED CAMERA
                   </span>
                 </div>
-              ))}
-            </div>
+                <h3 style={{ fontSize: '1.05rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
+                  No Component Locked
+                </h3>
+                <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.55 }}>
+                  You can freely rotate, pan, and zoom around the F-16 without camera snap. Select any assembly below whenever you want to focus and inspect a specific part.
+                </p>
+              </div>
+            )}
           </div>
 
           {/* 12-Part Interactive Component Index */}
           <div style={{ padding: '16px 20px', flex: 1 }}>
             <div
-              className="mono"
               style={{
-                fontSize: '10px',
-                letterSpacing: '0.12em',
-                color: 'var(--text-muted)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
                 marginBottom: '10px',
               }}
             >
-              COMPONENT INDEX (12 SUB-ASSEMBLIES)
+              <span
+                className="mono"
+                style={{
+                  fontSize: '10px',
+                  letterSpacing: '0.12em',
+                  color: 'var(--text-secondary)',
+                  fontWeight: 600,
+                }}
+              >
+                COMPONENT INDEX (12 SUB-ASSEMBLIES)
+              </span>
+              {selectedF16PartId && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedF16PartId(null)}
+                  className="btn btn-ghost btn-sm"
+                  style={{ height: '22px', padding: '0 8px', fontSize: '10px' }}
+                >
+                  Clear selection
+                </button>
+              )}
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               {F16_PARTS.map((part) => {
@@ -826,22 +792,23 @@ export default function Explorer() {
                   <button
                     key={part.id}
                     type="button"
-                    onClick={() => handleSelectF16Part(part.id)}
+                    onClick={() => handleSelectF16Part(isSelected ? null : part.id)}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
-                      padding: '9px 12px',
-                      borderRadius: '4px',
+                      padding: '10px 12px',
+                      borderRadius: 'var(--radius-sm)',
                       border: `1px solid ${
-                        isSelected ? 'var(--accent-primary)' : 'var(--border-subtle)'
+                        isSelected ? 'var(--border-strong)' : 'var(--border-subtle)'
                       }`,
                       background: isSelected
-                        ? 'var(--accent-primary-subtle)'
+                        ? 'var(--accent-subtle)'
                         : 'var(--bg-canvas)',
                       color: 'var(--text-primary)',
                       cursor: 'pointer',
                       textAlign: 'left',
+                      transition: 'all 140ms ease',
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -851,19 +818,27 @@ export default function Explorer() {
                           fontSize: '11px',
                           color: isSelected
                             ? 'var(--accent-primary)'
-                            : 'var(--text-muted)',
+                            : 'var(--text-tertiary)',
                           fontWeight: 700,
                         }}
                       >
                         {part.index}
                       </span>
-                      <span style={{ fontSize: '12.5px', fontWeight: isSelected ? 600 : 500 }}>
+                      <span
+                        style={{
+                          fontSize: '12.5px',
+                          fontWeight: isSelected ? 600 : 500,
+                          color: isSelected
+                            ? 'var(--accent-primary)'
+                            : 'var(--text-primary)',
+                        }}
+                      >
                         {part.name}
                       </span>
                     </div>
                     <span
                       className="mono"
-                      style={{ fontSize: '10px', color: 'var(--text-muted)' }}
+                      style={{ fontSize: '10px', color: 'var(--text-secondary)' }}
                     >
                       {part.category}
                     </span>
@@ -899,8 +874,8 @@ export default function Explorer() {
           style={{
             position: 'fixed',
             inset: 0,
-            background: 'rgba(15, 18, 23, 0.65)',
-            backdropFilter: 'blur(4px)',
+            background: 'rgba(5, 11, 26, 0.65)',
+            backdropFilter: 'blur(6px)',
             zIndex: 100,
             display: 'flex',
             alignItems: 'center',

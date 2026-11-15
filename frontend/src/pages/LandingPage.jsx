@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import {
   ArrowUpRight,
   Boxes,
@@ -8,8 +8,8 @@ import {
   Layers,
   ChevronLeft,
   ChevronRight,
-  Compass,
   Sliders,
+  Move3d,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import F16FalconAssembly, { F16_PARTS } from '../components/three/F16FalconAssembly';
@@ -20,7 +20,7 @@ import { computeWingPlanformAero } from '../domain/flightMechanics';
 
 const SPEC_BLOCKS = [
   {
-    category: '01 // DIMENSIONS & MASS',
+    category: '01 · DIMENSIONS & MASS',
     items: [
       { label: 'Length', value: '15.06 m (49 ft 5 in)' },
       { label: 'Wingspan', value: '9.96 m (32 ft 8 in)' },
@@ -29,7 +29,7 @@ const SPEC_BLOCKS = [
     ],
   },
   {
-    category: '02 // PROPULSION & THRUST',
+    category: '02 · PROPULSION & THRUST',
     items: [
       { label: 'Powerplant', value: '1 × GE F110-GE-129 Turbofan' },
       { label: 'Dry Military Thrust', value: '76.3 kN (17,155 lbf)' },
@@ -38,7 +38,7 @@ const SPEC_BLOCKS = [
     ],
   },
   {
-    category: '03 // AERODYNAMIC ENVELOPE',
+    category: '03 · AERODYNAMIC ENVELOPE',
     items: [
       { label: 'Maximum Speed', value: 'Mach 2.05 (2,178 km/h at FL400)' },
       { label: 'Service Ceiling', value: '15,240 m (50,000+ ft)' },
@@ -47,7 +47,7 @@ const SPEC_BLOCKS = [
     ],
   },
   {
-    category: '04 // AVIONICS & CONTROL LAW',
+    category: '04 · AVIONICS & CONTROL LAW',
     items: [
       { label: 'Flight Control System', value: 'Quad-Redundant Digital Fly-By-Wire' },
       { label: 'Static Margin (Subsonic)', value: '−2.0% MAC (Relaxed Stability)' },
@@ -58,51 +58,45 @@ const SPEC_BLOCKS = [
 ];
 
 export default function LandingPage() {
-  const navigate = useNavigate();
   const { activeAirfoil, setActiveAirfoil, flightConditions, setFlightConditions } =
     useApp();
 
   // Chapter I: F-16 3D Interactive Disassembly & Scroll-Choreographed State
+  // Default selectedPartId to `null` (Free Orbit mode) so users can orbit/pan/zoom freely!
   const [explodeFactor, setExplodeFactor] = useState(0.0);
   const [manualOverride, setManualOverride] = useState(false);
   const [flightMode, setFlightMode] = useState(false);
   const [wireframeMode, setWireframeMode] = useState(false);
   const [showLabels, setShowLabels] = useState(true);
   const [cameraView, setCameraView] = useState('overview');
-  const [selectedPartId, setSelectedPartId] = useState('radome');
+  const [selectedPartId, setSelectedPartId] = useState(null);
 
-  // Scroll-linked disassembly across the first 1200px of scroll unless manually overridden or in flight mode
+  // Scroll-linked disassembly across the first 1200px of scroll unless manually overridden or in flight mode.
+  // Never hijacks `selectedPartId` so the user's free camera movement is never interrupted.
   useEffect(() => {
     const handleScroll = () => {
       if (manualOverride || flightMode) return;
       const y = window.scrollY;
-      // Smoothly map scroll 80px..950px -> explodeFactor 0..1
       const progress = Math.max(0, Math.min(1, (y - 80) / 850));
       setExplodeFactor(Number(progress.toFixed(3)));
-
-      // Automatically step highlighted part as user scrolls through the explosion
-      if (y > 120 && y < 1050) {
-        const idx = Math.min(
-          F16_PARTS.length - 1,
-          Math.floor(progress * F16_PARTS.length)
-        );
-        if (F16_PARTS[idx]) {
-          setSelectedPartId(F16_PARTS[idx].id);
-        }
-      }
     };
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, [manualOverride, flightMode]);
 
   const activePartIndex = useMemo(() => {
-    const idx = F16_PARTS.findIndex((p) => p.id === selectedPartId);
-    return idx === -1 ? 0 : idx;
+    if (!selectedPartId) return -1;
+    return F16_PARTS.findIndex((p) => p.id === selectedPartId);
   }, [selectedPartId]);
 
-  const activePart = F16_PARTS[activePartIndex] || F16_PARTS[0];
+  const activePart = activePartIndex >= 0 ? F16_PARTS[activePartIndex] : null;
+  const inspectedPart = activePart || F16_PARTS[0];
 
   const stepPart = (delta) => {
+    if (activePartIndex === -1) {
+      setSelectedPartId(delta >= 0 ? F16_PARTS[0].id : F16_PARTS[F16_PARTS.length - 1].id);
+      return;
+    }
     const nextIdx = (activePartIndex + delta + F16_PARTS.length) % F16_PARTS.length;
     setSelectedPartId(F16_PARTS[nextIdx].id);
   };
@@ -133,8 +127,8 @@ export default function LandingPage() {
   return (
     <div
       style={{
-        backgroundColor: '#07090E',
-        color: '#F8FAFC',
+        backgroundColor: 'var(--bg-canvas)',
+        color: 'var(--text-primary)',
         minHeight: '100vh',
       }}
     >
@@ -147,15 +141,15 @@ export default function LandingPage() {
         style={{
           position: 'relative',
           height: '215vh',
-          borderBottom: '1px solid rgba(148, 163, 184, 0.16)',
+          borderBottom: '1px solid var(--border-subtle)',
         }}
       >
         <div
           style={{
             position: 'sticky',
-            top: '56px',
+            top: '60px',
             width: '100%',
-            height: 'calc(100vh - 56px)',
+            height: 'calc(100vh - 60px)',
             overflow: 'hidden',
           }}
         >
@@ -189,62 +183,58 @@ export default function LandingPage() {
             }}
           >
             {/* Left Title Block */}
-            <div style={{ maxWidth: '480px', pointerEvents: 'auto' }}>
-              <div
-                className="mono"
-                style={{
-                  fontSize: '11px',
-                  letterSpacing: '0.18em',
-                  color: '#00E5FF',
-                  marginBottom: '6px',
-                }}
-              >
+            <div
+              className="vg-glass"
+              style={{
+                maxWidth: '480px',
+                padding: '16px 20px',
+                pointerEvents: 'auto',
+              }}
+            >
+              <div className="vg-eyebrow" style={{ marginBottom: '6px' }}>
                 AERO / ARCHIVE · INTERACTIVE 3D DISASSEMBLY
               </div>
               <h1
                 style={{
-                  fontSize: 'clamp(1.75rem, 3vw, 2.65rem)',
+                  fontSize: 'clamp(1.5rem, 2.6vw, 2.25rem)',
                   fontWeight: 700,
                   letterSpacing: '-0.03em',
-                  lineHeight: 1.08,
+                  lineHeight: 1.1,
                   margin: '0 0 8px 0',
-                  color: '#F8FAFC',
+                  color: 'var(--glass-text)',
                 }}
               >
-                General Dynamics F-16 Fighting Falcon
+                General Dynamics F-16C Fighting Falcon
               </h1>
               <p
                 style={{
                   fontSize: '13px',
-                  color: '#94A3B8',
+                  color: 'var(--glass-text-soft)',
                   margin: 0,
                   lineHeight: 1.55,
                 }}
               >
-                Scroll down to explode all 12 structural sub-assemblies in 3D space, click any leader-line pin to inspect its engineering formulation, or ignite full afterburner flight mode.
+                Drag to orbit freely in 3D space, scroll down to explode all 12 sub-assemblies, or click any component pin to lock and inspect its formulation.
               </p>
             </div>
 
-            {/* Right Action Pill Bar (Matches Video 1 Top-Right Bar) */}
+            {/* Right Action Pill Bar */}
             <div
+              className="vg-glass"
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: '8px',
                 flexWrap: 'wrap',
                 pointerEvents: 'auto',
-                background: 'rgba(8, 12, 20, 0.84)',
-                backdropFilter: 'blur(12px)',
-                border: '1px solid rgba(148, 163, 184, 0.25)',
-                borderRadius: '6px',
-                padding: '6px 8px',
+                padding: '8px 10px',
               }}
             >
               <button
                 type="button"
                 onClick={() => scrollToSection('sec-components')}
                 className="btn btn-ghost btn-sm"
-                style={{ fontSize: '11px' }}
+                style={{ fontSize: '11.5px' }}
               >
                 Components (12)
               </button>
@@ -252,7 +242,7 @@ export default function LandingPage() {
                 type="button"
                 onClick={() => scrollToSection('sec-turbofan')}
                 className="btn btn-ghost btn-sm"
-                style={{ fontSize: '11px' }}
+                style={{ fontSize: '11.5px' }}
               >
                 Turbofan Cutaway
               </button>
@@ -260,7 +250,7 @@ export default function LandingPage() {
                 type="button"
                 onClick={() => scrollToSection('sec-cfd-tunnel')}
                 className="btn btn-ghost btn-sm"
-                style={{ fontSize: '11px' }}
+                style={{ fontSize: '11.5px' }}
               >
                 2D CFD Tunnel
               </button>
@@ -269,9 +259,21 @@ export default function LandingPage() {
                 style={{
                   width: '1px',
                   height: '18px',
-                  background: 'rgba(148, 163, 184, 0.25)',
+                  background: 'var(--glass-border)',
                 }}
               />
+
+              <button
+                type="button"
+                onClick={() => setSelectedPartId(null)}
+                className={`btn btn-sm ${
+                  selectedPartId === null ? 'btn-primary' : 'btn-secondary'
+                }`}
+                title="Clear part selection so you can move and orbit the camera freely"
+              >
+                <Move3d size={13} />
+                Free Orbit
+              </button>
 
               <button
                 type="button"
@@ -298,13 +300,9 @@ export default function LandingPage() {
                     return next;
                   });
                 }}
-                className="btn btn-sm"
-                style={{
-                  background: flightMode ? '#F97316' : 'rgba(249, 115, 22, 0.15)',
-                  border: '1px solid #F97316',
-                  color: flightMode ? '#06080E' : '#FB923C',
-                  fontWeight: 700,
-                }}
+                className={`btn btn-sm ${
+                  flightMode ? 'vg-btn-gold' : 'vg-btn-gold-outline'
+                }`}
               >
                 <Flame size={13} />
                 {flightMode ? 'Exit Flight' : 'Launch Flight'}
@@ -312,18 +310,15 @@ export default function LandingPage() {
             </div>
           </div>
 
-          {/* Right-Side Floating Component Inspector Card (Video 1 Style) */}
+          {/* Right-Side Floating Component Inspector Card */}
           <div
+            className="vg-glass"
             style={{
               position: 'absolute',
               right: '24px',
-              top: '104px',
-              width: '340px',
+              top: '96px',
+              width: '348px',
               zIndex: 20,
-              background: 'rgba(9, 13, 22, 0.88)',
-              backdropFilter: 'blur(14px)',
-              border: '1px solid rgba(148, 163, 184, 0.26)',
-              borderRadius: '6px',
               padding: '18px',
               display: 'flex',
               flexDirection: 'column',
@@ -335,6 +330,7 @@ export default function LandingPage() {
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
+                gap: '8px',
               }}
             >
               <span
@@ -342,18 +338,31 @@ export default function LandingPage() {
                 style={{
                   fontSize: '10px',
                   letterSpacing: '0.12em',
-                  color: '#00E5FF',
+                  color: 'var(--accent-primary)',
                   fontWeight: 700,
                 }}
               >
-                PART {activePart.index} / 12 · {activePart.category.toUpperCase()}
+                {activePart
+                  ? `PART ${activePart.index} / 12 · ${activePart.category.toUpperCase()}`
+                  : 'FREE ORBIT · NO PART LOCKED'}
               </span>
               <div style={{ display: 'flex', gap: '4px' }}>
+                {activePart && (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedPartId(null)}
+                    className="btn btn-secondary btn-sm"
+                    style={{ padding: '0 8px', height: '26px', fontSize: '10px' }}
+                    title="Unlock camera & clear selection"
+                  >
+                    Unlock
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => stepPart(-1)}
                   className="btn btn-secondary btn-sm"
-                  style={{ padding: '3px 6px' }}
+                  style={{ padding: '0 6px', height: '26px' }}
                   title="Previous component"
                 >
                   <ChevronLeft size={13} />
@@ -362,7 +371,7 @@ export default function LandingPage() {
                   type="button"
                   onClick={() => stepPart(1)}
                   className="btn btn-secondary btn-sm"
-                  style={{ padding: '3px 6px' }}
+                  style={{ padding: '0 6px', height: '26px' }}
                   title="Next component"
                 >
                   <ChevronRight size={13} />
@@ -370,67 +379,107 @@ export default function LandingPage() {
               </div>
             </div>
 
-            <h2
-              style={{
-                fontSize: '1.05rem',
-                fontWeight: 700,
-                margin: 0,
-                color: '#F8FAFC',
-              }}
-            >
-              {activePart.name}
-            </h2>
-
-            <p
-              style={{
-                fontSize: '12.5px',
-                color: '#CBD5E1',
-                lineHeight: 1.55,
-                margin: 0,
-              }}
-            >
-              {activePart.summary}
-            </p>
-
-            <div
-              className="mono"
-              style={{
-                fontSize: '11px',
-                padding: '7px 10px',
-                background: 'rgba(5, 8, 14, 0.85)',
-                border: '1px solid rgba(0, 229, 255, 0.25)',
-                borderRadius: '4px',
-                color: '#00E5FF',
-              }}
-            >
-              {activePart.formula}
-            </div>
-
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '5px',
-                borderTop: '1px solid rgba(148, 163, 184, 0.16)',
-                paddingTop: '8px',
-              }}
-            >
-              {(activePart.specs || []).map((sp) => (
-                <div
-                  key={sp.label}
+            {activePart ? (
+              <>
+                <h2
                   style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    fontSize: '11.5px',
+                    fontSize: '1.05rem',
+                    fontWeight: 700,
+                    margin: 0,
+                    color: 'var(--glass-text)',
                   }}
                 >
-                  <span style={{ color: '#94A3B8' }}>{sp.label}</span>
-                  <span className="mono" style={{ color: '#F8FAFC', fontWeight: 600 }}>
-                    {sp.value}
-                  </span>
+                  {activePart.name}
+                </h2>
+
+                <p
+                  style={{
+                    fontSize: '12.5px',
+                    color: 'var(--glass-text-soft)',
+                    lineHeight: 1.55,
+                    margin: 0,
+                  }}
+                >
+                  {activePart.summary}
+                </p>
+
+                <div
+                  className="mono"
+                  style={{
+                    fontSize: '11px',
+                    padding: '7px 10px',
+                    background: 'var(--accent-subtle)',
+                    border: '1px solid var(--border-strong)',
+                    borderRadius: 'var(--radius-xs)',
+                    color: 'var(--accent-primary)',
+                  }}
+                >
+                  {activePart.formula}
                 </div>
-              ))}
-            </div>
+
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '5px',
+                    borderTop: '1px solid var(--glass-border)',
+                    paddingTop: '8px',
+                  }}
+                >
+                  {(activePart.specs || []).map((sp) => (
+                    <div
+                      key={sp.label}
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        fontSize: '11.5px',
+                      }}
+                    >
+                      <span style={{ color: 'var(--glass-muted)' }}>{sp.label}</span>
+                      <span
+                        className="mono"
+                        style={{ color: 'var(--glass-text)', fontWeight: 600 }}
+                      >
+                        {sp.value}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <>
+                <h2
+                  style={{
+                    fontSize: '1.05rem',
+                    fontWeight: 700,
+                    margin: 0,
+                    color: 'var(--glass-text)',
+                  }}
+                >
+                  Free Camera Exploration Mode
+                </h2>
+                <p
+                  style={{
+                    fontSize: '12.5px',
+                    color: 'var(--glass-text-soft)',
+                    lineHeight: 1.55,
+                    margin: 0,
+                  }}
+                >
+                  No component is locking the camera. Left-drag to orbit 360°, right-drag to pan, or scroll to zoom freely. Click any 3D part or use the arrows above to inspect individual assemblies.
+                </p>
+                <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedPartId('radome')}
+                    className="btn btn-primary btn-sm"
+                    style={{ width: '100%' }}
+                  >
+                    Start Guided Part Tour (01 / 12)
+                  </button>
+                </div>
+              </>
+            )}
           </div>
 
           {/* Bottom Floating Camera Aspect & Disassembly Scrubber Bar */}
@@ -451,16 +500,14 @@ export default function LandingPage() {
           >
             {/* Camera Aspect Pills */}
             <div
+              className="vg-glass"
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: '6px',
-                background: 'rgba(8, 12, 20, 0.88)',
-                backdropFilter: 'blur(12px)',
-                border: '1px solid rgba(148, 163, 184, 0.25)',
-                borderRadius: '6px',
-                padding: '6px',
+                padding: '6px 8px',
                 pointerEvents: 'auto',
+                flexWrap: 'wrap',
               }}
             >
               {[
@@ -472,9 +519,14 @@ export default function LandingPage() {
                 <button
                   key={cam.id}
                   type="button"
-                  onClick={() => setCameraView(cam.id)}
+                  onClick={() => {
+                    setSelectedPartId(null);
+                    setCameraView(cam.id);
+                  }}
                   className={`btn btn-sm ${
-                    cameraView === cam.id ? 'btn-primary' : 'btn-secondary'
+                    cameraView === cam.id && !selectedPartId
+                      ? 'btn-primary'
+                      : 'btn-secondary'
                   }`}
                   style={{ fontSize: '11px' }}
                 >
@@ -486,7 +538,7 @@ export default function LandingPage() {
                 style={{
                   width: '1px',
                   height: '18px',
-                  background: 'rgba(148, 163, 184, 0.25)',
+                  background: 'var(--glass-border)',
                 }}
               />
 
@@ -497,7 +549,7 @@ export default function LandingPage() {
                 style={{ fontSize: '11px' }}
               >
                 <Eye size={13} />
-                {showLabels ? 'Hide labels' : 'Show labels'}
+                {showLabels ? 'Hide pins' : 'Show pins'}
               </button>
 
               <button
@@ -513,20 +565,17 @@ export default function LandingPage() {
 
             {/* Manual / Scroll Explosion Scrubber */}
             <div
+              className="vg-glass"
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: '12px',
-                background: 'rgba(8, 12, 20, 0.88)',
-                backdropFilter: 'blur(12px)',
-                border: '1px solid rgba(148, 163, 184, 0.25)',
-                borderRadius: '6px',
-                padding: '8px 14px',
+                padding: '8px 16px',
                 pointerEvents: 'auto',
                 minWidth: '280px',
               }}
             >
-              <span className="mono" style={{ fontSize: '10px', color: '#94A3B8' }}>
+              <span className="mono" style={{ fontSize: '10px', color: 'var(--glass-muted)' }}>
                 EXPLODE
               </span>
               <input
@@ -544,7 +593,12 @@ export default function LandingPage() {
               />
               <span
                 className="mono"
-                style={{ fontSize: '11px', color: '#00E5FF', minWidth: '36px' }}
+                style={{
+                  fontSize: '11px',
+                  color: 'var(--accent-primary)',
+                  minWidth: '36px',
+                  fontWeight: 600,
+                }}
               >
                 {Math.round(explodeFactor * 100)}%
               </span>
@@ -555,14 +609,13 @@ export default function LandingPage() {
 
       {/* ===================================================================
           CHAPTER 02 // "EVERY PART. A PURPOSE." — 12-PART ANATOMICAL INDEX
-          (Exact Video 1 Scrollable Editorial Breakdown)
          =================================================================== */}
       <section
         id="sec-components"
         style={{
           padding: '88px 28px',
-          borderBottom: '1px solid rgba(148, 163, 184, 0.16)',
-          background: '#080B11',
+          borderBottom: '1px solid var(--border-subtle)',
+          background: 'var(--bg-surface)',
         }}
       >
         <div
@@ -577,16 +630,8 @@ export default function LandingPage() {
         >
           {/* Left Editorial Column */}
           <div>
-            <div
-              className="mono"
-              style={{
-                fontSize: '11px',
-                letterSpacing: '0.16em',
-                color: '#00E5FF',
-                marginBottom: '10px',
-              }}
-            >
-              CHAPTER 02 // STRUCTURAL &amp; AVIONICS ANATOMY
+            <div className="vg-eyebrow" style={{ marginBottom: '10px' }}>
+              CHAPTER 02 · STRUCTURAL &amp; AVIONICS ANATOMY
             </div>
             <h2
               style={{
@@ -595,6 +640,7 @@ export default function LandingPage() {
                 letterSpacing: '-0.03em',
                 lineHeight: 1.08,
                 margin: '0 0 16px 0',
+                color: 'var(--text-primary)',
               }}
             >
               Every part. A purpose.
@@ -602,7 +648,7 @@ export default function LandingPage() {
             <p
               style={{
                 fontSize: '15px',
-                color: '#94A3B8',
+                color: 'var(--text-secondary)',
                 lineHeight: 1.7,
                 margin: '0 0 28px 0',
                 maxWidth: '48ch',
@@ -613,65 +659,92 @@ export default function LandingPage() {
 
             {/* Selected Part Deep-Dive Card */}
             <div
+              className="vg-card"
               style={{
                 padding: '24px',
-                background: '#0C111B',
-                border: '1px solid rgba(0, 229, 255, 0.3)',
-                borderRadius: '6px',
+                background: 'var(--bg-subtle)',
+                borderColor: 'var(--border-strong)',
               }}
             >
               <div
                 className="mono"
-                style={{ fontSize: '11px', color: '#00E5FF', marginBottom: '6px' }}
+                style={{
+                  fontSize: '11px',
+                  color: 'var(--accent-primary)',
+                  marginBottom: '6px',
+                  fontWeight: 600,
+                }}
               >
-                ACTIVE SELECTION · {activePart.code}
+                {activePart
+                  ? `ACTIVE SELECTION · ${inspectedPart.code}`
+                  : `FEATURED SUB-ASSEMBLY · ${inspectedPart.code}`}
               </div>
-              <h3 style={{ fontSize: '1.25rem', fontWeight: 700, margin: '0 0 10px 0' }}>
-                {activePart.name}
+              <h3
+                style={{
+                  fontSize: '1.25rem',
+                  fontWeight: 700,
+                  margin: '0 0 10px 0',
+                  color: 'var(--text-primary)',
+                }}
+              >
+                {inspectedPart.name}
               </h3>
               <p
                 style={{
                   fontSize: '13.5px',
-                  color: '#CBD5E1',
+                  color: 'var(--text-secondary)',
                   lineHeight: 1.65,
                   margin: '0 0 12px 0',
                 }}
               >
-                {activePart.engineeringNote}
+                {inspectedPart.engineeringNote}
               </p>
               <div
                 className="mono"
                 style={{
                   fontSize: '12px',
-                  color: '#38BDF8',
+                  color: 'var(--accent-primary)',
                   padding: '10px 12px',
-                  background: '#07090E',
-                  borderRadius: '4px',
+                  background: 'var(--bg-canvas)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: 'var(--radius-xs)',
                   marginBottom: '14px',
                 }}
               >
-                {activePart.formula}
+                {inspectedPart.formula}
               </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setManualOverride(true);
-                  setExplodeFactor(0.75);
-                  scrollToSection('sec-f16-stage');
-                }}
-                className="btn btn-primary btn-sm"
-              >
-                Focus in 3D Stage ↑
-              </button>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setManualOverride(true);
+                    setSelectedPartId(inspectedPart.id);
+                    setExplodeFactor(0.75);
+                    scrollToSection('sec-f16-stage');
+                  }}
+                  className="btn btn-primary btn-sm"
+                >
+                  Focus in 3D Stage ↑
+                </button>
+                {selectedPartId && (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedPartId(null)}
+                    className="btn btn-secondary btn-sm"
+                  >
+                    Clear Selection (Free Orbit)
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
-          {/* Right 12-Part Interactive Table */}
+          {/* Right 12-Part Interactive List */}
           <div
             style={{
               display: 'flex',
               flexDirection: 'column',
-              borderTop: '1px solid rgba(148, 163, 184, 0.2)',
+              gap: '8px',
             }}
           >
             {F16_PARTS.map((part) => {
@@ -680,22 +753,26 @@ export default function LandingPage() {
                 <button
                   key={part.id}
                   type="button"
-                  onClick={() => setSelectedPartId(part.id)}
+                  onClick={() =>
+                    setSelectedPartId((prev) => (prev === part.id ? null : part.id))
+                  }
                   style={{
                     display: 'grid',
-                    gridTemplateColumns: '44px 1fr auto',
+                    gridTemplateColumns: '40px 1fr auto',
                     alignItems: 'center',
-                    gap: '16px',
-                    padding: '16px 14px',
+                    gap: '14px',
+                    padding: '14px 16px',
                     background: isSelected
-                      ? 'rgba(0, 229, 255, 0.08)'
-                      : 'transparent',
-                    border: 'none',
-                    borderBottom: '1px solid rgba(148, 163, 184, 0.16)',
-                    color: '#F8FAFC',
+                      ? 'var(--accent-subtle)'
+                      : 'var(--bg-subtle)',
+                    border: `1px solid ${
+                      isSelected ? 'var(--border-strong)' : 'var(--border-subtle)'
+                    }`,
+                    borderRadius: 'var(--radius-md)',
+                    color: 'var(--text-primary)',
                     textAlign: 'left',
                     cursor: 'pointer',
-                    transition: 'background 140ms ease',
+                    transition: 'all 140ms ease',
                   }}
                 >
                   <span
@@ -703,7 +780,9 @@ export default function LandingPage() {
                     style={{
                       fontSize: '12px',
                       fontWeight: 700,
-                      color: isSelected ? '#00E5FF' : '#64748B',
+                      color: isSelected
+                        ? 'var(--accent-primary)'
+                        : 'var(--text-tertiary)',
                     }}
                   >
                     {part.index}
@@ -713,7 +792,9 @@ export default function LandingPage() {
                       style={{
                         fontSize: '14.5px',
                         fontWeight: 600,
-                        color: isSelected ? '#00E5FF' : '#F8FAFC',
+                        color: isSelected
+                          ? 'var(--accent-primary)'
+                          : 'var(--text-primary)',
                       }}
                     >
                       {part.name}
@@ -721,25 +802,14 @@ export default function LandingPage() {
                     <div
                       style={{
                         fontSize: '12px',
-                        color: '#94A3B8',
+                        color: 'var(--text-secondary)',
                         marginTop: '2px',
                       }}
                     >
                       {part.summary}
                     </div>
                   </div>
-                  <span
-                    className="mono"
-                    style={{
-                      fontSize: '10px',
-                      color: '#94A3B8',
-                      padding: '3px 8px',
-                      border: '1px solid rgba(148, 163, 184, 0.25)',
-                      borderRadius: '3px',
-                    }}
-                  >
-                    {part.category}
-                  </span>
+                  <span className="vg-badge">{part.category}</span>
                 </button>
               );
             })}
@@ -749,14 +819,13 @@ export default function LandingPage() {
 
       {/* ===================================================================
           CHAPTER 03 // TURBOFAN EXPLORER — SUCK · SQUEEZE · BANG · BLOW
-          (Full-Bleed Interactive 3D Wing-Mounted Cutaway Jet Engine — Video 2)
          =================================================================== */}
       <section
         id="sec-turbofan"
         style={{
           padding: '84px 28px',
-          borderBottom: '1px solid rgba(148, 163, 184, 0.16)',
-          background: '#07090E',
+          borderBottom: '1px solid var(--border-subtle)',
+          background: 'var(--bg-canvas)',
         }}
       >
         <div style={{ maxWidth: '1440px', margin: '0 auto' }}>
@@ -771,16 +840,8 @@ export default function LandingPage() {
             }}
           >
             <div>
-              <div
-                className="mono"
-                style={{
-                  fontSize: '11px',
-                  letterSpacing: '0.16em',
-                  color: '#00E5FF',
-                  marginBottom: '8px',
-                }}
-              >
-                CHAPTER 03 // BRAYTON THERMODYNAMIC CYCLE &amp; DUAL-SPOOL PROPULSION
+              <div className="vg-eyebrow" style={{ marginBottom: '8px' }}>
+                CHAPTER 03 · BRAYTON THERMODYNAMIC CYCLE &amp; DUAL-SPOOL PROPULSION
               </div>
               <h2
                 style={{
@@ -788,6 +849,7 @@ export default function LandingPage() {
                   fontWeight: 700,
                   letterSpacing: '-0.03em',
                   margin: 0,
+                  color: 'var(--text-primary)',
                 }}
               >
                 Turbofan Explorer — Suck · Squeeze · Bang · Blow
@@ -796,7 +858,7 @@ export default function LandingPage() {
             <p
               style={{
                 fontSize: '13.5px',
-                color: '#94A3B8',
+                color: 'var(--text-secondary)',
                 maxWidth: '54ch',
                 margin: 0,
                 lineHeight: 1.6,
@@ -812,14 +874,13 @@ export default function LandingPage() {
 
       {/* ===================================================================
           CHAPTER 04 // AERODYNAMICS STUDIO — 2D NAVIER-STOKES WIND TUNNEL
-          (Real-Time 60 FPS Eulerian CFD Solver with On-Canvas Drag — Video 3)
          =================================================================== */}
       <section
         id="sec-cfd-tunnel"
         style={{
           padding: '84px 28px',
-          borderBottom: '1px solid rgba(148, 163, 184, 0.16)',
-          background: '#080B11',
+          borderBottom: '1px solid var(--border-subtle)',
+          background: 'var(--bg-surface)',
         }}
       >
         <div style={{ maxWidth: '1440px', margin: '0 auto' }}>
@@ -834,16 +895,8 @@ export default function LandingPage() {
             }}
           >
             <div>
-              <div
-                className="mono"
-                style={{
-                  fontSize: '11px',
-                  letterSpacing: '0.16em',
-                  color: '#22C55E',
-                  marginBottom: '8px',
-                }}
-              >
-                CHAPTER 04 // REAL-TIME 2D EULERIAN NAVIER-STOKES FLUID SOLVER
+              <div className="vg-eyebrow" style={{ marginBottom: '8px' }}>
+                CHAPTER 04 · REAL-TIME 2D EULERIAN NAVIER-STOKES FLUID SOLVER
               </div>
               <h2
                 style={{
@@ -851,6 +904,7 @@ export default function LandingPage() {
                   fontWeight: 700,
                   letterSpacing: '-0.03em',
                   margin: 0,
+                  color: 'var(--text-primary)',
                 }}
               >
                 Aerodynamics Studio &amp; Interactive Smoke Tunnel
@@ -895,21 +949,13 @@ export default function LandingPage() {
         id="sec-specs"
         style={{
           padding: '84px 28px 96px',
-          background: '#07090E',
+          background: 'var(--bg-canvas)',
         }}
       >
         <div style={{ maxWidth: '1380px', margin: '0 auto' }}>
           <div style={{ marginBottom: '36px' }}>
-            <div
-              className="mono"
-              style={{
-                fontSize: '11px',
-                letterSpacing: '0.16em',
-                color: '#00E5FF',
-                marginBottom: '8px',
-              }}
-            >
-              CHAPTER 05 // TECHNICAL SPECIFICATION MATRIX
+            <div className="vg-eyebrow" style={{ marginBottom: '8px' }}>
+              CHAPTER 05 · TECHNICAL SPECIFICATION MATRIX
             </div>
             <h2
               style={{
@@ -917,6 +963,7 @@ export default function LandingPage() {
                 fontWeight: 700,
                 letterSpacing: '-0.03em',
                 margin: 0,
+                color: 'var(--text-primary)',
               }}
             >
               F-16C Block 50 Flight &amp; Structural Envelope
@@ -926,28 +973,23 @@ export default function LandingPage() {
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))',
-              border: '1px solid rgba(148, 163, 184, 0.2)',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+              gap: '20px',
             }}
           >
-            {SPEC_BLOCKS.map((block, bIdx) => (
+            {SPEC_BLOCKS.map((block) => (
               <div
                 key={block.category}
+                className="vg-card"
                 style={{
-                  padding: '28px 24px',
-                  borderRight:
-                    bIdx < SPEC_BLOCKS.length - 1
-                      ? '1px solid rgba(148, 163, 184, 0.16)'
-                      : 'none',
-                  borderBottom: '1px solid rgba(148, 163, 184, 0.16)',
-                  background: '#090D16',
+                  padding: '24px',
                 }}
               >
                 <div
                   className="mono"
                   style={{
                     fontSize: '11px',
-                    color: '#00E5FF',
+                    color: 'var(--accent-primary)',
                     fontWeight: 700,
                     marginBottom: '18px',
                     letterSpacing: '0.1em',
@@ -963,11 +1005,11 @@ export default function LandingPage() {
                         display: 'flex',
                         flexDirection: 'column',
                         gap: '2px',
-                        borderBottom: '1px solid rgba(148, 163, 184, 0.1)',
+                        borderBottom: '1px solid var(--border-subtle)',
                         paddingBottom: '10px',
                       }}
                     >
-                      <span style={{ fontSize: '12px', color: '#94A3B8' }}>
+                      <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
                         {item.label}
                       </span>
                       <span
@@ -975,7 +1017,7 @@ export default function LandingPage() {
                         style={{
                           fontSize: '14px',
                           fontWeight: 700,
-                          color: '#F8FAFC',
+                          color: 'var(--text-primary)',
                         }}
                       >
                         {item.value}

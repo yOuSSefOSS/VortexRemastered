@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
     Compass,
@@ -9,24 +9,22 @@ import {
     Moon,
     Lock,
     Cpu,
-    Radio,
     Menu,
     X,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
 const NAV_ITEMS = [
-    { to: '/explore', code: '01', label: '3D hangar', icon: Compass },
-    { to: '/lab', code: '02', label: 'Simulation cockpit', icon: Sliders },
-    { to: '/events', code: '03', label: 'Event cohorts', icon: Users },
-    { to: '/admin', code: '04', label: 'Host console', icon: ShieldCheck },
+    { to: '/explore', label: '3D Hangar', icon: Compass },
+    { to: '/lab', label: 'Simulation Cockpit', icon: Sliders },
+    { to: '/events', label: 'Workshops & Cohorts', icon: Users },
+    { to: '/admin', label: 'Host Console', icon: ShieldCheck },
 ];
 
 export default function AppShell({ children }) {
     const location = useLocation();
     const navigate = useNavigate();
     const [mobileOpen, setMobileOpen] = useState(false);
-    const [utcClock, setUtcClock] = useState('');
 
     const {
         theme,
@@ -38,20 +36,6 @@ export default function AppShell({ children }) {
         setAudienceTrack,
     } = useApp();
 
-    // Live ArcMarumo / Mission Control UTC Timecode
-    useEffect(() => {
-        const updateClock = () => {
-            const now = new Date();
-            const hh = String(now.getUTCHours()).padStart(2, '0');
-            const mm = String(now.getUTCMinutes()).padStart(2, '0');
-            const ss = String(now.getUTCSeconds()).padStart(2, '0');
-            setUtcClock(`${hh}:${mm}:${ss} UTC`);
-        };
-        updateClock();
-        const timer = setInterval(updateClock, 1000);
-        return () => clearInterval(timer);
-    }, []);
-
     return (
         <div
             style={{
@@ -62,31 +46,33 @@ export default function AppShell({ children }) {
                 color: 'var(--text-primary)',
             }}
         >
-            {/* 56px Tactical Instrument Header Bar (EnduroSat × ArcMarumo Hairline Grid) */}
+            {/* Clean, Modern "Fly Higher" Glass Header Bar */}
             <header
                 style={{
-                    height: '56px',
+                    height: '60px',
                     flexShrink: 0,
-                    background: 'var(--bg-surface)',
+                    background: 'var(--glass-bg-strong)',
+                    backdropFilter: 'blur(16px) saturate(140%)',
+                    WebkitBackdropFilter: 'blur(16px) saturate(140%)',
                     borderBottom: '1px solid var(--border-subtle)',
                     display: 'flex',
-                    alignItems: 'stretch',
+                    alignItems: 'center',
                     justifyContent: 'space-between',
+                    padding: '0 20px',
                     position: 'sticky',
                     top: 0,
                     zIndex: 50,
+                    gap: '16px',
                 }}
             >
-                {/* Left Segment: Brand Identity + Live Telemetry Timecode */}
-                <div style={{ display: 'flex', alignItems: 'stretch' }}>
+                {/* Left Segment: Brand Identity + Pill Navigation */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
                     <Link
                         to="/"
                         style={{
                             display: 'flex',
                             alignItems: 'center',
-                            gap: '12px',
-                            padding: '0 20px',
-                            borderRight: '1px solid var(--border-subtle)',
+                            gap: '10px',
                             textDecoration: 'none',
                             color: 'var(--text-primary)',
                         }}
@@ -95,60 +81,44 @@ export default function AppShell({ children }) {
                             src="/brand/logo-icon.jpg"
                             alt="Vortex-Gen"
                             style={{
-                                width: '28px',
-                                height: '28px',
-                                borderRadius: '2px',
+                                width: '32px',
+                                height: '32px',
+                                borderRadius: '8px',
                                 border: '1px solid var(--border-strong)',
                                 objectFit: 'cover',
                             }}
                         />
                         <div style={{ display: 'flex', flexDirection: 'column' }}>
                             <span
+                                className="vg-display"
                                 style={{
-                                    fontFamily: 'var(--font-mono)',
-                                    fontSize: '0.8125rem',
-                                    fontWeight: 600,
-                                    letterSpacing: '0.03em',
-                                    lineHeight: 1.2,
+                                    fontSize: '0.95rem',
+                                    fontWeight: 700,
+                                    lineHeight: 1.15,
+                                    color: 'var(--text-primary)',
                                 }}
                             >
-                                VORTEX-GEN // SYS.02
+                                Vortex-Gen
                             </span>
                             <span
+                                className="mono"
                                 style={{
-                                    fontFamily: 'var(--font-mono)',
                                     fontSize: '0.625rem',
-                                    color: 'var(--text-secondary)',
+                                    letterSpacing: '0.12em',
+                                    color: 'var(--accent-primary)',
                                     lineHeight: 1.2,
+                                    fontWeight: 600,
                                 }}
                             >
-                                ORBITAL &amp; AERO TELEMETRY
+                                FLY HIGHER · AERO LAB
                             </span>
                         </div>
                     </Link>
 
-                    {/* Live Timecode Cell (ArcMarumo Instrument Readout) */}
-                    <div
-                        className="hidden xl:flex"
-                        style={{
-                            alignItems: 'center',
-                            gap: '8px',
-                            padding: '0 16px',
-                            borderRight: '1px solid var(--border-subtle)',
-                            fontFamily: 'var(--font-mono)',
-                            fontSize: '0.6875rem',
-                            color: 'var(--text-secondary)',
-                        }}
-                    >
-                        <Radio size={12} style={{ color: 'var(--status-success)' }} />
-                        <span className="vg-tabular">{utcClock}</span>
-                        <span style={{ color: 'var(--text-tertiary)' }}>//</span>
-                        <span style={{ color: 'var(--accent-primary)' }}>WEBGL 60FPS</span>
-                    </div>
-
-                    {/* Numbered Tactical Navigation Cells */}
-                    <nav className="hidden md:flex" style={{ alignItems: 'stretch' }}>
+                    {/* Pill Navigation Links */}
+                    <nav className="hidden md:flex" style={{ alignItems: 'center', gap: '6px' }}>
                         {NAV_ITEMS.map((item) => {
+                            const Icon = item.icon;
                             const isActive =
                                 location.pathname === item.to ||
                                 location.pathname.startsWith(`${item.to}/`);
@@ -157,37 +127,28 @@ export default function AppShell({ children }) {
                                     key={item.to}
                                     to={item.to}
                                     style={{
-                                        display: 'flex',
+                                        display: 'inline-flex',
                                         alignItems: 'center',
-                                        gap: '8px',
-                                        padding: '0 18px',
-                                        borderRight: '1px solid var(--border-subtle)',
-                                        borderBottom: isActive
-                                            ? '2px solid var(--accent-primary)'
-                                            : '2px solid transparent',
+                                        gap: '7px',
+                                        height: '36px',
+                                        padding: '0 14px',
+                                        borderRadius: 'var(--radius-pill)',
                                         background: isActive
                                             ? 'var(--accent-subtle)'
                                             : 'transparent',
+                                        border: isActive
+                                            ? '1px solid var(--border-strong)'
+                                            : '1px solid transparent',
                                         color: isActive
-                                            ? 'var(--text-primary)'
+                                            ? 'var(--accent-primary)'
                                             : 'var(--text-secondary)',
-                                        fontFamily: 'var(--font-mono)',
-                                        fontSize: '0.75rem',
+                                        fontSize: '0.8125rem',
                                         fontWeight: isActive ? 600 : 500,
                                         textDecoration: 'none',
-                                        transition: 'all 120ms ease',
+                                        transition: 'all 150ms ease',
                                     }}
                                 >
-                                    <span
-                                        style={{
-                                            fontSize: '0.6875rem',
-                                            color: isActive
-                                                ? 'var(--accent-primary)'
-                                                : 'var(--text-tertiary)',
-                                        }}
-                                    >
-                                        [{item.code}]
-                                    </span>
+                                    <Icon size={14} />
                                     <span>{item.label}</span>
                                 </Link>
                             );
@@ -195,17 +156,10 @@ export default function AppShell({ children }) {
                     </nav>
                 </div>
 
-                {/* Right Segment: Track Depth Switcher, Hardware Device Terminal & Polarity */}
-                <div style={{ display: 'flex', alignItems: 'stretch' }}>
+                {/* Right Segment: Track Depth Switcher, Session Badge & Theme Toggle */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                     {/* Curriculum Depth Selector */}
-                    <div
-                        className="hidden sm:flex"
-                        style={{
-                            alignItems: 'center',
-                            padding: '0 14px',
-                            borderLeft: '1px solid var(--border-subtle)',
-                        }}
-                    >
+                    <div className="hidden sm:flex" style={{ alignItems: 'center' }}>
                         <div className="vg-segmented" role="group" aria-label="Curriculum depth">
                             <button
                                 type="button"
@@ -233,70 +187,71 @@ export default function AppShell({ children }) {
                         </div>
                     </div>
 
-                    {/* Device Identity & Tier Cell */}
+                    {/* Device Identity & Tier Pill */}
                     <Link
                         to="/login"
                         title={`Hardware Fingerprint: ${deviceFingerprint}`}
                         className="hidden lg:flex"
                         style={{
                             alignItems: 'center',
-                            gap: '10px',
-                            padding: '0 16px',
-                            borderLeft: '1px solid var(--border-subtle)',
+                            gap: '8px',
+                            height: '36px',
+                            padding: '0 14px',
+                            borderRadius: 'var(--radius-pill)',
+                            background: 'var(--bg-subtle)',
+                            border: '1px solid var(--border-subtle)',
                             textDecoration: 'none',
                             color: 'var(--text-primary)',
-                            fontFamily: 'var(--font-mono)',
                             fontSize: '0.75rem',
+                            fontWeight: 500,
                         }}
                     >
                         <Cpu size={14} style={{ color: 'var(--accent-primary)' }} />
-                        <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.2 }}>
-                            <span style={{ fontWeight: 600, fontSize: '0.75rem' }}>
-                                {session.display_name}
-                            </span>
-                            <span style={{ fontSize: '0.625rem', color: 'var(--text-secondary)' }}>
-                                {deviceFingerprint.slice(0, 12)} // {capabilities.label}
-                            </span>
-                        </div>
+                        <span style={{ fontWeight: 600 }}>{session.display_name}</span>
+                        <span
+                            className="mono"
+                            style={{
+                                fontSize: '0.6875rem',
+                                color: 'var(--text-secondary)',
+                            }}
+                        >
+                            · {capabilities.label}
+                        </span>
                     </Link>
 
-                    {/* Polarity Switcher */}
+                    {/* Theme Polarity Switcher (Dark <-> Light) */}
                     <button
                         type="button"
                         onClick={toggleTheme}
-                        aria-label={`Switch to ${theme === 'light' ? 'orbital dark' : 'blueprint light'} mode`}
+                        aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+                        className="vg-btn vg-btn-secondary vg-btn-sm"
                         style={{
-                            width: '52px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            background: 'transparent',
-                            border: 'none',
-                            borderLeft: '1px solid var(--border-subtle)',
-                            color: 'var(--text-secondary)',
-                            cursor: 'pointer',
+                            gap: '6px',
+                            padding: '0 12px',
                         }}
                     >
-                        {theme === 'light' ? <Moon size={16} /> : <Sun size={16} />}
+                        {theme === 'light' ? (
+                            <>
+                                <Moon size={14} />
+                                <span className="hidden sm:inline">Dark</span>
+                            </>
+                        ) : (
+                            <>
+                                <Sun size={14} />
+                                <span className="hidden sm:inline">Light</span>
+                            </>
+                        )}
                     </button>
 
                     {/* Mobile Menu Button */}
                     <button
                         type="button"
                         onClick={() => setMobileOpen((v) => !v)}
-                        className="flex md:hidden"
-                        style={{
-                            width: '52px',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            background: 'transparent',
-                            border: 'none',
-                            borderLeft: '1px solid var(--border-subtle)',
-                            color: 'var(--text-primary)',
-                            cursor: 'pointer',
-                        }}
+                        className="flex md:hidden vg-btn vg-btn-secondary vg-btn-sm"
+                        style={{ padding: '0 10px' }}
+                        aria-label="Toggle navigation menu"
                     >
-                        {mobileOpen ? <X size={18} /> : <Menu size={18} />}
+                        {mobileOpen ? <X size={17} /> : <Menu size={17} />}
                     </button>
                 </div>
             </header>
@@ -312,23 +267,32 @@ export default function AppShell({ children }) {
                         gap: '8px',
                     }}
                 >
-                    {NAV_ITEMS.map((item) => (
-                        <Link
-                            key={item.to}
-                            to={item.to}
-                            onClick={() => setMobileOpen(false)}
-                            style={{
-                                padding: '8px 12px',
-                                fontFamily: 'var(--font-mono)',
-                                fontSize: '0.8125rem',
-                                color: 'var(--text-primary)',
-                                textDecoration: 'none',
-                                border: '1px solid var(--border-subtle)',
-                            }}
-                        >
-                            [{item.code}] {item.label}
-                        </Link>
-                    ))}
+                    {NAV_ITEMS.map((item) => {
+                        const Icon = item.icon;
+                        return (
+                            <Link
+                                key={item.to}
+                                to={item.to}
+                                onClick={() => setMobileOpen(false)}
+                                style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '10px',
+                                    padding: '10px 14px',
+                                    borderRadius: 'var(--radius-sm)',
+                                    fontSize: '0.875rem',
+                                    fontWeight: 500,
+                                    color: 'var(--text-primary)',
+                                    textDecoration: 'none',
+                                    background: 'var(--bg-subtle)',
+                                    border: '1px solid var(--border-subtle)',
+                                }}
+                            >
+                                <Icon size={15} style={{ color: 'var(--accent-primary)' }} />
+                                <span>{item.label}</span>
+                            </Link>
+                        );
+                    })}
                 </div>
             )}
 
