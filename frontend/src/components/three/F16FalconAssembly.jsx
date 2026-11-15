@@ -1,1626 +1,1770 @@
-import React, { useRef, useMemo, useEffect, useState } from 'react';
+import React, { useRef, useMemo, useEffect } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, Html, Line, ContactShadows } from '@react-three/drei';
 import * as THREE from 'three';
-import { computeNACA4Digit } from '../../domain/nacaGeometry';
 
 /**
  * ============================================================================
- * AERO / ARCHIVE — HIGH-PRECISION F-16C BLOCK 50 FIGHTING FALCON 3D ASSEMBLY
- * - High-segment parametric aerodynamic meshes (tangent-ogive radome, lofted
- *   blended wing-body fuselage spine & LERX strakes, seamless teardrop bubble
- *   canopy with ACES II cockpit, NACA 64A204 lofted wings, biconvex tail,
- *   16-petal convergent-divergent F110 iris nozzle, detailed tricycle landing
- *   gear, and finned AIM-9X / drop-tank external stores).
- * - Full Free-Orbit Mode (`selectedPart = null`): users can clear selection or
- *   click empty space to orbit/pan/zoom freely without camera lock.
+ * AERO / ARCHIVE — F-16C BLOCK 50 FIGHTING FALCON (SEMI-REALISTIC 12-PART RIG)
+ * - Continuous lofted Blended Wing-Body (BWB) airframe with integrated chine
+ *   strakes (LERX), dorsal avionics spine, and twin ventral stability fins.
+ * - Flush Sears-Haack elliptical radome with slight nose droop & APG-68 array.
+ * - Sculpted frameless teardrop gold-tinted bubble canopy & recessed ACES II tub.
+ * - Lofted D-section normal-shock ventral supersonic intake & splitter plate.
+ * - True 3D tapered NACA 64A204 airfoil wings, vertical tail with USAF tail
+ *   markings ("AF 80 025"), tapered anhedral stabilators, and conical 16-petal
+ *   F110-GE-129 iris exhaust nozzle.
+ * - Free-Orbit support: `selectedPart = null` by default; clicking empty space
+ *   or clicking the active part clears selection for unrestricted 360° orbit.
  * ============================================================================
  */
 
 export const F16_PARTS = [
-    {
-        id: 'radome',
-        index: '01',
-        name: 'Radome & APG-68 fire-control radar',
-        shortLabel: 'Radome & nose',
-        category: 'Avionics & sensors',
-        code: 'F16-01',
-        subsystemMap: 'avionics',
-        basePos: [3.55, -0.03, 0],
-        explodeOffset: [2.25, 0.32, 0],
-        anchorOffset: [0.45, 0.14, 0],
-        labelOffset: [0.85, 0.92, 0.4],
-        summary:
-            'Dielectric Sears-Haack ogive nose cone housing the Northrop Grumman AN/APG-68(V)9 pulse-Doppler radar array and nose pitot-static boom.',
-        engineeringNote:
-            'Contoured to minimize transonic wave drag (CD,wave) while maintaining radar transparency across X-band fire-control frequencies.',
-        engineering:
-            'Contoured to minimize transonic wave drag (CD,wave) while maintaining radar transparency across X-band fire-control frequencies.',
-        formula: 'θ_cone = arctan(d / 2L) ,  M_crit = 0.88',
-        specs: [
-            { label: 'Radar Array', value: 'AN/APG-68(V)9 X-Band Pulse-Doppler' },
-            { label: 'Fineness Ratio', value: 'L/D = 3.4 Tangent Ogive' },
-            { label: 'Detection Range', value: '296 km Look-Down / Shoot-Down' },
-        ],
-    },
-    {
-        id: 'cockpit',
-        index: '02',
-        name: 'Cockpit section & polycarbonate canopy',
-        shortLabel: 'Cockpit & canopy',
-        category: 'Crew station',
-        code: 'F16-02',
-        subsystemMap: 'avionics',
-        basePos: [1.75, 0.34, 0],
-        explodeOffset: [0.85, 1.48, 0],
-        anchorOffset: [0.05, 0.28, 0],
-        labelOffset: [0.3, 1.15, -0.5],
-        summary:
-            'Frameless single-piece polycarbonate teardrop bubble canopy providing 360° upper-hemisphere visibility, paired with a 30° reclined ACES II ejection seat and force-sensing side-stick.',
-        engineeringNote:
-            'The 30° seat tilt reduces head-to-heart hydrostatic blood column height h, raising pilot G-tolerance up to +9.0 Gz sustained.',
-        engineering:
-            'The 30° seat tilt reduces head-to-heart hydrostatic blood column height h, raising pilot G-tolerance up to +9.0 Gz sustained.',
-        formula: 'ΔP_hydrostatic = ρ_blood · g · Gz · h · cos(30°)',
-        specs: [
-            { label: 'Canopy Glazing', value: '19 mm Gold-Indium-Tin Polycarbonate' },
-            { label: 'Ejection Seat', value: 'ACES II Zero-Zero (30° Reclined)' },
-            { label: 'Flight Control', value: 'Force-Sensing Side-Stick + Quad FBW' },
-        ],
-    },
-    {
-        id: 'airframe',
-        index: '03',
-        name: 'Central wing-body blended airframe',
-        shortLabel: 'Blended airframe',
-        category: 'Primary structure',
-        code: 'F16-03',
-        subsystemMap: 'fuselage',
-        basePos: [0, 0, 0],
-        explodeOffset: [0, 0.16, 0],
-        anchorOffset: [0.1, 0.32, 0],
-        labelOffset: [-0.2, 1.38, 0],
-        summary:
-            'Area-ruled blended wing-body (BWB) forebody strakes (LERX) and multi-frame Al-2024/Ti-6Al-4V dorsal fuselage spine carrying wing bending moments and internal fuel.',
-        engineeringNote:
-            'Forebody strakes generate controlled leading-edge vortex lift at high angles of attack (α > 15°), energizing flow over the vertical tail.',
-        engineering:
-            'Forebody strakes generate controlled leading-edge vortex lift at high angles of attack (α > 15°), energizing flow over the vertical tail.',
-        formula: 'CL,total = CL,potential + CL,vortex(α²)',
-        specs: [
-            { label: 'Alloy Composition', value: '78% Al-2024/7075 · 8% Ti-6Al-4V' },
-            { label: 'Design Load Limit', value: '+9.0 G / -3.0 G Full Internal Fuel' },
-            { label: 'Static Margin', value: '-2.0% MAC (Relaxed Static Stability)' },
-        ],
-    },
-    {
-        id: 'intake',
-        index: '04',
-        name: 'Ventral normal-shock inlet duct',
-        shortLabel: 'Supersonic inlet',
-        category: 'Air induction',
-        code: 'F16-04',
-        subsystemMap: 'engines',
-        basePos: [0.95, -0.45, 0],
-        explodeOffset: [0.9, -1.28, 0],
-        anchorOffset: [0.3, -0.14, 0],
-        labelOffset: [0.6, -0.95, 0.7],
-        summary:
-            'Fixed-geometry Modular Common Inlet Duct (MCID) positioned beneath the forebody with a boundary-layer splitter plate to prevent gun-gas ingestion and flow separation at high α.',
-        engineeringNote:
-            'Decelerates supersonic freestream flow (Mach 1.6–2.0) to subsonic Mach ~0.45 at the fan face through a normal shock and curved S-diffuser.',
-        engineering:
-            'Decelerates supersonic freestream flow (Mach 1.6–2.0) to subsonic Mach ~0.45 at the fan face through a normal shock and curved S-diffuser.',
-        formula: 'P02 / P01 = f(M1) ,  ṁ = ρ · A_inlet · V',
-        specs: [
-            { label: 'Inlet Type', value: 'Fixed-Geometry Normal-Shock Pitot' },
-            { label: 'Pressure Recovery', value: '0.96 Subsonic / 0.89 at Mach 1.6' },
-            { label: 'Core Mass Flow', value: '122 kg/s Corrected Fan Airflow' },
-        ],
-    },
-    {
-        id: 'port_wing',
-        index: '05',
-        name: 'Port cropped-delta wing & flaperon',
-        shortLabel: 'Port wing',
-        category: 'Lifting surface',
-        code: 'F16-05',
-        subsystemMap: 'wings',
-        basePos: [-0.35, 0.02, -0.62],
-        explodeOffset: [-0.15, 0.25, -1.85],
-        anchorOffset: [-0.1, 0.04, -1.2],
-        labelOffset: [0.2, 0.85, -2.1],
-        summary:
-            '40° leading-edge sweep cropped-delta planform lofted with a thin NACA 64A204 supersonic airfoil section (4% thickness-to-chord ratio) and auto-scheduled leading-edge flap.',
-        engineeringNote:
-            'Trailing-edge flaperons operate differentially for roll rate (up to 324°/s) and droop symmetrically as high-lift flaps during approach.',
-        engineering:
-            'Trailing-edge flaperons operate differentially for roll rate (up to 324°/s) and droop symmetrically as high-lift flaps during approach.',
-        formula: 'AR = b² / S = 3.2 ,  Λ_LE = 40° ,  t/c = 0.04',
-        specs: [
-            { label: 'Airfoil Section', value: 'NACA 64A204 (t/c = 4.0%)' },
-            { label: 'Leading-Edge Sweep', value: '40° Cropped Delta · AR 3.2' },
-            { label: 'High-Lift Device', value: 'Auto-Scheduled LE Flap (-2° to +25°)' },
-        ],
-    },
-    {
-        id: 'starboard_wing',
-        index: '06',
-        name: 'Starboard cropped-delta wing & flaperon',
-        shortLabel: 'Starboard wing',
-        category: 'Lifting surface',
-        code: 'F16-06',
-        subsystemMap: 'wings',
-        basePos: [-0.35, 0.02, 0.62],
-        explodeOffset: [-0.15, 0.25, 1.85],
-        anchorOffset: [-0.1, 0.04, 1.2],
-        labelOffset: [0.2, 0.85, 2.1],
-        summary:
-            'Starboard primary lifting surface featuring integral wet-wing fuel bays, multi-spar aluminum substructure, and electro-hydrostatic flaperon actuators.',
-        engineeringNote:
-            'Relaxed static stability (negative subsonic static margin ~ -2% MAC) reduces trim drag and maximizes sustained turn rate.',
-        engineering:
-            'Relaxed static stability (negative subsonic static margin ~ -2% MAC) reduces trim drag and maximizes sustained turn rate.',
-        formula: 'L = ½ · ρ · V² · S · CL(α, δ_LE, δ_flaperon)',
-        specs: [
-            { label: 'Reference Wing Area', value: '27.87 m² (300.0 ft²)' },
-            { label: 'Max Roll Rate', value: '324 deg/s via Differential Flaperons' },
-            { label: 'Hardpoints', value: '3 Under-Wing + 1 Wingtip Rail' },
-        ],
-    },
-    {
-        id: 'vertical_tail',
-        index: '07',
-        name: 'Vertical stabilizer & rudder assembly',
-        shortLabel: 'Vertical stabilizer',
-        category: 'Directional control',
-        code: 'F16-07',
-        subsystemMap: 'tail',
-        basePos: [-2.52, 0.82, 0],
-        explodeOffset: [-1.45, 1.55, 0],
-        anchorOffset: [-0.2, 0.55, 0],
-        labelOffset: [-0.9, 1.45, -0.4],
-        summary:
-            'High-sweep carbon-epoxy composite vertical tail fin with dorsal avionics fairing, RWR antenna blister, drag-chute/ECM housing, and rudder servo-actuator.',
-        engineeringNote:
-            'Provides directional weathercock stability (Cnβ > 0) and yaw authority for crosswind landings and high-α coordination.',
-        engineering:
-            'Provides directional weathercock stability (Cnβ > 0) and yaw authority for crosswind landings and high-α coordination.',
-        formula: 'Cn = Cnβ · β + Cnδr · δr ,  VV = (Sv · lv) / (S · b)',
-        specs: [
-            { label: 'Fin Structure', value: 'Graphite-Epoxy Skins / Al Honeycomb' },
-            { label: 'Leading-Edge Sweep', value: '47.5° Biconvex Supersonic Section' },
-            { label: 'Rudder Authority', value: '±30° Electro-Hydrostatic Servo' },
-        ],
-    },
-    {
-        id: 'port_stabilator',
-        index: '08',
-        name: 'Port all-moving horizontal stabilator',
-        shortLabel: 'Port stabilator',
-        category: 'Pitch & roll trim',
-        code: 'F16-08',
-        subsystemMap: 'tail',
-        basePos: [-2.75, -0.08, -0.58],
-        explodeOffset: [-1.55, -0.35, -1.45],
-        anchorOffset: [-0.1, 0, -0.6],
-        labelOffset: [-0.8, -0.55, -1.4],
-        summary:
-            'All-moving pivoted horizontal tail surface with 10° anhedral droop, providing primary longitudinal pitch control and differential roll augmentation (tailerons).',
-        engineeringNote:
-            'In supersonic flight where the aerodynamic center shifts aft from 25% to ~50% MAC, all-moving stabilators retain pitch authority without elevator blanking.',
-        engineering:
-            'In supersonic flight where the aerodynamic center shifts aft from 25% to ~50% MAC, all-moving stabilators retain pitch authority without elevator blanking.',
-        formula: 'Cm,cg = Cm0 + Cmα · α + Cmδh · δh',
-        specs: [
-            { label: 'Actuation Type', value: 'All-Moving Titanium Pivot Spindle' },
-            { label: 'Deflection Range', value: '±25° Symmetric & Differential' },
-            { label: 'Dihedral Angle', value: '-10° Anhedral for Wake Clearance' },
-        ],
-    },
-    {
-        id: 'starboard_stabilator',
-        index: '09',
-        name: 'Starboard all-moving horizontal stabilator',
-        shortLabel: 'Starboard stabilator',
-        category: 'Pitch & roll trim',
-        code: 'F16-09',
-        subsystemMap: 'tail',
-        basePos: [-2.75, -0.08, 0.58],
-        explodeOffset: [-1.55, -0.35, 1.45],
-        anchorOffset: [-0.1, 0, 0.6],
-        labelOffset: [-0.8, -0.55, 1.4],
-        summary:
-            'Starboard composite honeycomb stabilator pivoted on a titanium spindle shaft and commanded at 400 Hz by the quad-redundant digital flight control computer.',
-        engineeringNote:
-            'Operates symmetrically with the port stabilator for pitch rate command and differentially for high-speed roll augmentation.',
-        engineering:
-            'Operates symmetrically with the port stabilator for pitch rate command and differentially for high-speed roll augmentation.',
-        formula: 'δh,port / δh,stbd = δ_pitch ± δ_roll_taileron',
-        specs: [
-            { label: 'Control Loop Rate', value: '400 Hz Quad-Redundant Digital FBW' },
-            { label: 'Surface Skin', value: 'Carbon-Epoxy Laminate over Honeycomb' },
-            { label: 'Slew Rate', value: '60 deg/s Under Full Aerodynamic Load' },
-        ],
-    },
-    {
-        id: 'nozzle',
-        index: '10',
-        name: 'F110 afterburning turbofan & convergent-divergent nozzle',
-        shortLabel: 'Exhaust / afterburner',
-        category: 'Propulsion',
-        code: 'F16-10',
-        subsystemMap: 'engines',
-        basePos: [-2.95, 0.02, 0],
-        explodeOffset: [-2.35, 0.05, 0],
-        anchorOffset: [-0.35, 0, 0],
-        labelOffset: [-1.4, 0.65, 0.6],
-        summary:
-            '16-petal variable-area convergent-divergent (C-D) iris exhaust nozzle mated to the GE F110-GE-129 afterburning turbofan (131.2 kN wet thrust).',
-        engineeringNote:
-            'Modulates throat area A* and exit area Ae to expand exhaust gases isentropically to supersonic Mach > 1.8 during full afterburner operation.',
-        engineering:
-            'Modulates throat area A* and exit area Ae to expand exhaust gases isentropically to supersonic Mach > 1.8 during full afterburner operation.',
-        formula: 'FN = ṁ · (Ve − V0) + (Pe − P0) · Ae',
-        specs: [
-            { label: 'Powerplant', value: 'GE F110-GE-129 Augmented Turbofan' },
-            { label: 'Max Wet Thrust', value: '131.2 kN (29,500 lbf) w/ Afterburner' },
-            { label: 'Overall Pressure Ratio', value: '30.7 : 1 · Bypass Ratio 0.76 : 1' },
-        ],
-    },
-    {
-        id: 'undercarriage',
-        index: '11',
-        name: 'Tricycle hydro-pneumatic undercarriage',
-        shortLabel: 'Undercarriage',
-        category: 'Landing gear',
-        code: 'F16-11',
-        subsystemMap: 'fuselage',
-        basePos: [0.1, -0.76, 0],
-        explodeOffset: [0, -1.65, 0],
-        anchorOffset: [0, -0.25, 0],
-        labelOffset: [-0.2, -1.05, -0.9],
-        summary:
-            'Steerable nose gear aft of the chin intake and wide-track fuselage-retracting main A-frame gear with oleo-pneumatic shock struts and multi-disc carbon brakes.',
-        engineeringNote:
-            'Absorbs vertical sink-rate kinetic energy (½·m·Vz²) during touchdown and retracts flush into the lower fuselage bays to eliminate parasite drag.',
-        engineering:
-            'Absorbs vertical sink-rate kinetic energy (½·m·Vz²) during touchdown and retracts flush into the lower fuselage bays to eliminate parasite drag.',
-        formula: 'E_impact = ½ · m · V_sink² = ∫ F_oleo(s) ds',
-        specs: [
-            { label: 'Shock Absorption', value: 'Nitrogen-Oil Oleo-Pneumatic Struts' },
-            { label: 'Braking System', value: 'Multi-Disc Carbon w/ Digital Anti-Skid' },
-            { label: 'Max Gear Speed', value: '300 KIAS Extension / Retraction' },
-        ],
-    },
-    {
-        id: 'stores',
-        index: '12',
-        name: 'Wingtip AIM-9X rails & external fuel stores',
-        shortLabel: 'External stores',
-        category: 'Payload & stores',
-        code: 'F16-12',
-        subsystemMap: 'wings',
-        basePos: [-0.35, -0.22, 0],
-        explodeOffset: [0.35, -1.05, 1.65],
-        anchorOffset: [0, -0.1, 1.5],
-        labelOffset: [0.6, -0.75, 2.2],
-        summary:
-            'Wingtip LAU-129 launch rails carrying AIM-9X Sidewinder air-to-air missiles, under-wing AIM-120 AMRAAMs, and 370-gallon Sargent Fletcher external drop tanks.',
-        engineeringNote:
-            'Mounting missiles on the wingtips acts like aerodynamic endplates/winglets, attenuating wingtip vortex roll-up and reducing induced drag CD,i by ~6%.',
-        engineering:
-            'Mounting missiles on the wingtips acts like aerodynamic endplates/winglets, attenuating wingtip vortex roll-up and reducing induced drag CD,i by ~6%.',
-        formula: 'CD,i = CL² / (π · AR_eff · e)',
-        specs: [
-            { label: 'Wingtip Stations', value: '2 × LAU-129 Rails (AIM-9X Sidewinder)' },
-            { label: 'External Fuel', value: '2 × 370 US gal Finned Drop Tanks' },
-            { label: 'Wingtip Vortex Effect', value: '-6% Induced Drag via Endplate Effect' },
-        ],
-    },
+  {
+    id: 'radome',
+    index: '01',
+    name: 'Radome & APG-68 fire-control radar',
+    shortLabel: 'Radome & nose',
+    category: 'Avionics & sensors',
+    code: 'F16-01',
+    subsystemMap: 'avionics',
+    basePos: [2.65, 0.0, 0],
+    explodeOffset: [2.35, 0.2, 0],
+    anchorOffset: [0.85, 0.12, 0],
+    labelOffset: [1.35, 0.92, 0.45],
+    summary:
+      'Sears-Haack dielectric ogive nose cone housing the Northrop Grumman AN/APG-68(V)9 pulse-Doppler fire-control radar and nose pitot-static boom.',
+    engineeringNote:
+      'Sears-Haack ogive curvature minimizes transonic wave drag (CD,wave) while maintaining X-band radar transparency and lightning diversion.',
+    engineering:
+      'Sears-Haack ogive curvature minimizes transonic wave drag (CD,wave) while maintaining X-band radar transparency and lightning diversion.',
+    formula: 'θ_cone = arctan(d / 2L) ,  M_crit = 0.88',
+    specs: [
+      { label: 'Radar Array', value: 'AN/APG-68(V)9 X-Band Planar Array' },
+      { label: 'Fineness Ratio', value: 'L/D = 3.6 Sears-Haack Ogive' },
+      { label: 'Detection Range', value: '296 km Look-Down / Shoot-Down' },
+    ],
+  },
+  {
+    id: 'cockpit',
+    index: '02',
+    name: 'Cockpit tub & frameless bubble canopy',
+    shortLabel: 'Cockpit & canopy',
+    category: 'Crew station',
+    code: 'F16-02',
+    subsystemMap: 'avionics',
+    basePos: [1.42, 0.26, 0],
+    explodeOffset: [0.65, 1.48, 0],
+    anchorOffset: [0.05, 0.34, 0],
+    labelOffset: [0.35, 1.18, -0.55],
+    summary:
+      'Frameless single-piece gold-indium-tin coated polycarbonate bubble canopy providing 360° upper-hemisphere visibility, paired with a 30° reclined ACES II seat.',
+    engineeringNote:
+      'The 30° seat tilt reduces vertical heart-to-brain hydrostatic column height h, raising pilot sustained G-tolerance to +9.0 Gz.',
+    engineering:
+      'The 30° seat tilt reduces vertical heart-to-brain hydrostatic column height h, raising pilot sustained G-tolerance to +9.0 Gz.',
+    formula: 'ΔP_hydrostatic = ρ_blood · g · Gz · h · cos(30°)',
+    specs: [
+      { label: 'Canopy Glazing', value: '19 mm Gold-Coated Polycarbonate' },
+      { label: 'Ejection Seat', value: 'ACES II Zero-Zero (30° Reclined)' },
+      { label: 'Flight Control', value: 'Force-Sensing Side-Stick + Quad FBW' },
+    ],
+  },
+  {
+    id: 'airframe',
+    index: '03',
+    name: 'Blended wing-body fuselage & LERX strakes',
+    shortLabel: 'Central airframe',
+    category: 'Primary structure',
+    code: 'F16-03',
+    subsystemMap: 'fuselage',
+    basePos: [0, 0, 0],
+    explodeOffset: [0, 0.16, 0],
+    anchorOffset: [-0.25, 0.42, 0],
+    labelOffset: [-0.35, 1.42, 0],
+    summary:
+      'Blended wing-body (BWB) fuselage with sharp forebody chine strakes (LERX), dorsal avionics spine, M61A1 20mm rotary cannon bay, and integral fuel cells.',
+    engineeringNote:
+      'Forebody LERX strakes shed stable leading-edge vortices at high α (>15°), generating vortex lift and energizing boundary-layer flow over the tail.',
+    engineering:
+      'Forebody LERX strakes shed stable leading-edge vortices at high α (>15°), generating vortex lift and energizing boundary-layer flow over the tail.',
+    formula: 'CL,total = CL,potential + CL,vortex · sin²(α)cos(α)',
+    specs: [
+      { label: 'Alloy Composition', value: '78% Al-2024/7075 · 8% Ti-6Al-4V' },
+      { label: 'Design Load Limit', value: '+9.0 G / −3.0 G Full Internal Fuel' },
+      { label: 'Static Margin', value: '−2.0% MAC (Relaxed Static Stability)' },
+    ],
+  },
+  {
+    id: 'intake',
+    index: '04',
+    name: 'Ventral normal-shock supersonic inlet',
+    shortLabel: 'Supersonic inlet',
+    category: 'Air induction',
+    code: 'F16-04',
+    subsystemMap: 'engines',
+    basePos: [0.85, -0.38, 0],
+    explodeOffset: [0.85, -1.28, 0],
+    anchorOffset: [0.45, -0.14, 0],
+    labelOffset: [0.85, -0.92, 0.75],
+    summary:
+      'Fixed-geometry ventral chin intake with boundary-layer diverter splitter plate positioned beneath the forebody to prevent flow separation at high α.',
+    engineeringNote:
+      'Forebody compression plus a normal shock at the inlet lip decelerates Mach 1.6–2.0 freestream air to Mach ~0.45 at the F110 fan face.',
+    engineering:
+      'Forebody compression plus a normal shock at the inlet lip decelerates Mach 1.6–2.0 freestream air to Mach ~0.45 at the F110 fan face.',
+    formula: 'P02 / P01 = f(M1) ,  ṁ = ρ · A_inlet · V',
+    specs: [
+      { label: 'Inlet Geometry', value: 'Fixed-Geometry Normal-Shock Pitot' },
+      { label: 'Pressure Recovery', value: '0.96 Subsonic / 0.89 at Mach 1.6' },
+      { label: 'Core Mass Flow', value: '122 kg/s Corrected Fan Airflow' },
+    ],
+  },
+  {
+    id: 'port_wing',
+    index: '05',
+    name: 'Port cropped-delta wing & flaperon',
+    shortLabel: 'Port wing',
+    category: 'Lifting surface',
+    code: 'F16-05',
+    subsystemMap: 'wings',
+    basePos: [-0.35, 0.0, -0.62],
+    explodeOffset: [-0.15, 0.22, -1.95],
+    anchorOffset: [-0.35, 0.04, -1.15],
+    labelOffset: [0.1, 0.88, -2.05],
+    summary:
+      '40° leading-edge sweep cropped-delta planform using a thin NACA 64A204 section (t/c = 4%) with automatic leading-edge maneuvering flaps and trailing-edge flaperons.',
+    engineeringNote:
+      'Leading-edge flaps automatically schedule with Angle of Attack α and Mach number to delay leading-edge stall and minimize camber drag.',
+    engineering:
+      'Leading-edge flaps automatically schedule with Angle of Attack α and Mach number to delay leading-edge stall and minimize camber drag.',
+    formula: 'AR = b² / S = 3.2 ,  Λ_LE = 40° ,  t/c = 0.04',
+    specs: [
+      { label: 'Airfoil Section', value: 'NACA 64A204 (t/c = 4.0%)' },
+      { label: 'Leading-Edge Sweep', value: '40° Cropped Delta · AR 3.2' },
+      { label: 'High-Lift Device', value: 'Auto-Scheduled LE Flap (−2° to +25°)' },
+    ],
+  },
+  {
+    id: 'starboard_wing',
+    index: '06',
+    name: 'Starboard cropped-delta wing & flaperon',
+    shortLabel: 'Starboard wing',
+    category: 'Lifting surface',
+    code: 'F16-06',
+    subsystemMap: 'wings',
+    basePos: [-0.35, 0.0, 0.62],
+    explodeOffset: [-0.15, 0.22, 1.95],
+    anchorOffset: [-0.35, 0.04, 1.15],
+    labelOffset: [0.1, 0.88, 2.05],
+    summary:
+      'Starboard multi-spar primary lifting surface featuring integral wing fuel bays, weapons pylons, and high-rate electro-hydraulic flaperon actuators.',
+    engineeringNote:
+      'Relaxed static stability (negative subsonic static margin ~ −2% MAC) allows the horizontal tail to upload rather than download in maneuvering flight.',
+    engineering:
+      'Relaxed static stability (negative subsonic static margin ~ −2% MAC) allows the horizontal tail to upload rather than download in maneuvering flight.',
+    formula: 'L = ½ · ρ · V² · S · CL(α, δ_LE, δ_flaperon)',
+    specs: [
+      { label: 'Reference Wing Area', value: '27.87 m² (300.0 ft²)' },
+      { label: 'Max Roll Rate', value: '324 deg/s via Differential Flaperons' },
+      { label: 'Hardpoints', value: '3 Under-Wing + 1 Wingtip Rail' },
+    ],
+  },
+  {
+    id: 'vertical_tail',
+    index: '07',
+    name: 'Vertical stabilizer, ECM pod & rudder',
+    shortLabel: 'Vertical stabilizer',
+    category: 'Directional control',
+    code: 'F16-07',
+    subsystemMap: 'tail',
+    basePos: [-2.25, 0.36, 0],
+    explodeOffset: [-1.35, 1.55, 0],
+    anchorOffset: [-0.25, 0.95, 0],
+    labelOffset: [-0.95, 1.85, -0.35],
+    summary:
+      '47.5°-swept graphite-epoxy composite vertical tail fin with dorsal brake-chute/ECM fairing, RWR blister, and hydraulic rudder servo.',
+    engineeringNote:
+      'Provides directional weathercock stability (Cnβ > 0) and high-α yaw authority in the energized vortex wake shed by the forebody strakes.',
+    engineering:
+      'Provides directional weathercock stability (Cnβ > 0) and high-α yaw authority in the energized vortex wake shed by the forebody strakes.',
+    formula: 'Cn = Cnβ · β + Cnδr · δr ,  VV = (Sv · lv) / (S · b)',
+    specs: [
+      { label: 'Fin Structure', value: 'Graphite-Epoxy Skins / Al Honeycomb' },
+      { label: 'Leading-Edge Sweep', value: '47.5° Biconvex Supersonic Section' },
+      { label: 'Rudder Authority', value: '±30° Electro-Hydrostatic Servo' },
+    ],
+  },
+  {
+    id: 'port_stabilator',
+    index: '08',
+    name: 'Port all-moving anhedral stabilator',
+    shortLabel: 'Port stabilator',
+    category: 'Pitch & roll trim',
+    code: 'F16-08',
+    subsystemMap: 'tail',
+    basePos: [-2.55, -0.04, -0.52],
+    explodeOffset: [-1.55, -0.35, -1.45],
+    anchorOffset: [-0.2, -0.06, -0.65],
+    labelOffset: [-0.85, -0.58, -1.45],
+    summary:
+      'All-moving pivoted horizontal tail surface with 10° anhedral droop providing longitudinal pitch control and differential roll augmentation (taileron).',
+    engineeringNote:
+      'In supersonic flight where the aerodynamic center shifts aft from 25% to ~50% MAC, all-moving stabilators retain full pitch authority without shock blanking.',
+    engineering:
+      'In supersonic flight where the aerodynamic center shifts aft from 25% to ~50% MAC, all-moving stabilators retain full pitch authority without shock blanking.',
+    formula: 'Cm,cg = Cm0 + Cmα · α + Cmδh · δh',
+    specs: [
+      { label: 'Actuation Type', value: 'All-Moving Titanium Pivot Spindle' },
+      { label: 'Deflection Range', value: '±25° Symmetric & Differential' },
+      { label: 'Anhedral Angle', value: '−10° Droop for Wing-Wake Clearance' },
+    ],
+  },
+  {
+    id: 'starboard_stabilator',
+    index: '09',
+    name: 'Starboard all-moving anhedral stabilator',
+    shortLabel: 'Starboard stabilator',
+    category: 'Pitch & roll trim',
+    code: 'F16-09',
+    subsystemMap: 'tail',
+    basePos: [-2.55, -0.04, 0.52],
+    explodeOffset: [-1.55, -0.35, 1.45],
+    anchorOffset: [-0.2, -0.06, 0.65],
+    labelOffset: [-0.85, -0.58, 1.45],
+    summary:
+      'Starboard composite honeycomb stabilator pivoted on a titanium spindle shaft and commanded at 400 Hz by the quad-redundant digital flight control computer.',
+    engineeringNote:
+      'Continuously makes micro-adjustments to artificially stabilize the airframe’s negative static margin in subsonic flight.',
+    engineering:
+      'Continuously makes micro-adjustments to artificially stabilize the airframe’s negative static margin in subsonic flight.',
+    formula: 'δh,port / δh,stbd = δ_pitch ± δ_roll_taileron',
+    specs: [
+      { label: 'Control Loop Rate', value: '400 Hz Quad-Redundant Digital FBW' },
+      { label: 'Surface Skin', value: 'Carbon-Epoxy Laminate over Honeycomb' },
+      { label: 'Slew Rate', value: '60 deg/s Under Full Aerodynamic Load' },
+    ],
+  },
+  {
+    id: 'nozzle',
+    index: '10',
+    name: 'F110-GE-129 afterburner & 16-petal iris nozzle',
+    shortLabel: 'F110 exhaust nozzle',
+    category: 'Propulsion',
+    code: 'F16-10',
+    subsystemMap: 'engines',
+    basePos: [-2.82, 0.0, 0],
+    explodeOffset: [-2.35, 0.05, 0],
+    anchorOffset: [-0.45, 0, 0],
+    labelOffset: [-1.45, 0.72, 0.55],
+    summary:
+      'Variable-area convergent-divergent (C-D) 16-petal iris exhaust nozzle mated to the GE F110-GE-129 afterburning turbofan (131.2 kN wet thrust).',
+    engineeringNote:
+      'Modulates throat area A* and exit area Ae to expand exhaust gas supersonic, forming visible Mach shock diamonds in the afterburner plume.',
+    engineering:
+      'Modulates throat area A* and exit area Ae to expand exhaust gas supersonic, forming visible Mach shock diamonds in the afterburner plume.',
+    formula: 'FN = ṁ · (Ve − V0) + (Pe − P0) · Ae',
+    specs: [
+      { label: 'Powerplant', value: 'GE F110-GE-129 Augmented Turbofan' },
+      { label: 'Max Wet Thrust', value: '131.2 kN (29,500 lbf) w/ Afterburner' },
+      { label: 'Overall Pressure Ratio', value: '30.7 : 1 · Bypass Ratio 0.76 : 1' },
+    ],
+  },
+  {
+    id: 'undercarriage',
+    index: '11',
+    name: 'Tricycle oleo-pneumatic undercarriage',
+    shortLabel: 'Undercarriage',
+    category: 'Landing gear',
+    code: 'F16-11',
+    subsystemMap: 'fuselage',
+    basePos: [0.0, -0.68, 0],
+    explodeOffset: [0, -1.65, 0],
+    anchorOffset: [-0.2, -0.25, 0.55],
+    labelOffset: [-0.25, -1.05, -0.95],
+    summary:
+      'Steerable nose gear aft of the chin intake and wide-track fuselage-retracting main gear with oleo-pneumatic shock struts, scissors links, and carbon brakes.',
+    engineeringNote:
+      'Absorbs vertical sink-rate kinetic energy (½·m·Vz²) on touchdown and retracts flush into white-painted lower fuselage bays.',
+    engineering:
+      'Absorbs vertical sink-rate kinetic energy (½·m·Vz²) on touchdown and retracts flush into white-painted lower fuselage bays.',
+    formula: 'E_impact = ½ · m · V_sink² = ∫ F_oleo(s) ds',
+    specs: [
+      { label: 'Shock Absorption', value: 'Nitrogen-Oil Oleo-Pneumatic Struts' },
+      { label: 'Braking System', value: 'Multi-Disc Carbon w/ Digital Anti-Skid' },
+      { label: 'Max Gear Speed', value: '300 KIAS Extension / Retraction' },
+    ],
+  },
+  {
+    id: 'stores',
+    index: '12',
+    name: 'Wingtip AIM-9X, AIM-120 & 370-gal drop tanks',
+    shortLabel: 'Ordnance & stores',
+    category: 'Payload & stores',
+    code: 'F16-12',
+    subsystemMap: 'wings',
+    basePos: [-0.35, -0.18, 0],
+    explodeOffset: [0.25, -1.15, 1.55],
+    anchorOffset: [-0.2, -0.08, 1.85],
+    labelOffset: [0.55, -0.78, 2.35],
+    summary:
+      'Wingtip LAU-129 rails carrying AIM-9X Sidewinders, mid-wing AIM-120 AMRAAMs, and inboard 370-gallon external fuel drop tanks.',
+    engineeringNote:
+      'Mounting missiles on the wingtips acts as aerodynamic endplates, attenuating wingtip vortex roll-up and reducing induced drag CD,i by ~6%.',
+    engineering:
+      'Mounting missiles on the wingtips acts as aerodynamic endplates, attenuating wingtip vortex roll-up and reducing induced drag CD,i by ~6%.',
+    formula: 'CD,i = CL² / (π · AR_eff · e)',
+    specs: [
+      { label: 'Wingtip Stations', value: '2 × LAU-129 Rails (AIM-9X Sidewinder)' },
+      { label: 'Under-Wing Stations', value: '2 × AIM-120 AMRAAM + 2 × 370-gal Tanks' },
+      { label: 'Wingtip Vortex Effect', value: '−6% Induced Drag via Endplate Effect' },
+    ],
+  },
 ];
 
 const CAMERA_VIEWS = {
-    overview: { pos: [6.0, 2.35, 6.5], target: [0.15, 0.05, 0] },
-    top: { pos: [0.1, 9.2, 0.01], target: [0.1, 0, 0] },
-    side: { pos: [0.1, 0.55, 8.6], target: [0.1, 0.0, 0] },
-    front: { pos: [8.4, 0.75, 0.01], target: [0, 0.0, 0] },
+  overview: { pos: [6.4, 2.3, 6.8], target: [0.1, 0.0, 0] },
+  top: { pos: [0.1, 9.5, 0.01], target: [0.1, 0, 0] },
+  side: { pos: [0.1, 0.65, 9.0], target: [0.1, 0.0, 0] },
+  front: { pos: [8.6, 0.85, 0.01], target: [0, 0.0, 0] },
 };
 
 /**
- * Helper: Build a smooth 3D lofted tapered swept wing/fin BufferGeometry
- * using real NACA 4-digit airfoil coordinates at root and tip.
+ * Builds a general lofted BufferGeometry from an array of cross-section rings.
+ * Each ring in `rings` is an array of ` radialCount` [x, y, z] points.
  */
-function buildLoftedAirfoilGeometry({
-    rootChord = 2.2,
-    tipChord = 0.55,
-    span = 2.1,
-    sweepOffset = 0.72,
-    dihedralOffset = 0.0,
-    camber = 0.015,
-    maxCamberLoc = 0.4,
-    thickness = 0.045,
-    profileSegments = 44,
-    spanSegments = 16,
-    vertical = false,
-}) {
-    const profile = computeNACA4Digit(camber, maxCamberLoc, thickness, profileSegments);
-    const nPts = profile.length;
-    const positions = [];
-    const indices = [];
+function buildLoftedBufferGeometry(rings, closeCaps = true) {
+  const numRings = rings.length;
+  const numRadial = rings[0].length;
+  const positions = [];
+  const uvs = [];
+  const indices = [];
 
-    for (let j = 0; j <= spanSegments; j++) {
-        const v = j / spanSegments;
-        const chord = THREE.MathUtils.lerp(rootChord, tipChord, v);
-        const xShift = v * sweepOffset;
-        const spanCoord = v * span;
-        const orthoCoord = v * dihedralOffset;
-
-        for (let i = 0; i < nPts; i++) {
-            const [nx, ny] = profile[i];
-            const lx = (0.45 - nx) * chord - xShift;
-            const ly = ny * chord;
-            if (vertical) {
-                positions.push(lx, spanCoord, ly + orthoCoord);
-            } else {
-                positions.push(lx, ly + orthoCoord, spanCoord);
-            }
-        }
+  for (let i = 0; i < numRings; i++) {
+    const u = i / Math.max(1, numRings - 1);
+    const ring = rings[i];
+    for (let j = 0; j <= numRadial; j++) {
+      const v = j / numRadial;
+      const pt = ring[j % numRadial];
+      positions.push(pt[0], pt[1], pt[2]);
+      uvs.push(u, v);
     }
+  }
 
-    const ringSize = nPts;
-    for (let j = 0; j < spanSegments; j++) {
-        for (let i = 0; i < ringSize - 1; i++) {
-            const a = j * ringSize + i;
-            const b = (j + 1) * ringSize + i;
-            const c = (j + 1) * ringSize + (i + 1);
-            const d = j * ringSize + (i + 1);
-            indices.push(a, b, d);
-            indices.push(b, c, d);
-        }
+  const stride = numRadial + 1;
+  for (let i = 0; i < numRings - 1; i++) {
+    for (let j = 0; j < numRadial; j++) {
+      const a = i * stride + j;
+      const b = (i + 1) * stride + j;
+      const c = (i + 1) * stride + (j + 1);
+      const d = i * stride + (j + 1);
+      indices.push(a, b, d);
+      indices.push(b, c, d);
     }
+  }
 
-    // Cap root and tip
-    const rootCenterIdx = positions.length / 3;
-    positions.push(0, 0, 0);
-    const tipCenterIdx = rootCenterIdx + 1;
-    if (vertical) {
-        positions.push(-sweepOffset, span, dihedralOffset);
-    } else {
-        positions.push(-sweepOffset, dihedralOffset, span);
-    }
-
-    for (let i = 0; i < ringSize - 1; i++) {
-        indices.push(rootCenterIdx, i + 1, i);
-        const tipBase = spanSegments * ringSize;
-        indices.push(tipCenterIdx, tipBase + i, tipBase + i + 1);
-    }
-
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-    geo.setIndex(indices);
-    geo.computeVertexNormals();
-    return geo;
-}
-
-/**
- * Helper: Build a smooth Sears-Haack / Tangent-Ogive LatheGeometry oriented along +X
- */
-function buildOgiveRadomeGeometry(length = 1.55, baseRadius = 0.35, axialSegs = 44, radialSegs = 64) {
-    const pts = [];
-    for (let i = 0; i <= axialSegs; i++) {
-        const t = i / axialSegs; // 0 at base, 1 at nose tip
-        // Haack-series / tangent ogive blend for smooth curve
-        const r = baseRadius * Math.pow(1 - t, 0.64) * (1 + 0.16 * t);
-        const y = (t - 0.5) * length;
-        pts.push(new THREE.Vector2(Math.max(0.002, r), y));
-    }
-    const geo = new THREE.LatheGeometry(pts, radialSegs);
-    geo.rotateZ(-Math.PI / 2);
-    geo.computeVertexNormals();
-    return geo;
-}
-
-/**
- * Helper: Build a sculpted F-16 Teardrop Bubble Canopy Geometry
- */
-function buildBubbleCanopyGeometry() {
-    const geo = new THREE.SphereGeometry(1, 56, 36, 0, Math.PI * 2, 0, Math.PI * 0.52);
-    const pos = geo.attributes.position;
-    for (let i = 0; i < pos.count; i++) {
-        let x = pos.getX(i);
-        let y = pos.getY(i);
-        let z = pos.getZ(i);
-
-        // Stretch longitudinally into F-16 teardrop profile: steeper front windscreen, long tapered aft spine
-        const longX = x * 1.12;
-        const taperZ = longX < 0 ? 1.0 - Math.min(0.48, Math.abs(longX) * 0.35) : 1.0 - longX * 0.22;
-        const heightMod = longX > 0 ? 1.0 - longX * 0.18 : 1.0 - Math.abs(longX) * 0.12;
-
-        x = longX + 0.08;
-        y = Math.max(0, y) * 0.37 * heightMod;
-        z = z * 0.34 * taperZ;
-
-        pos.setXYZ(i, x, y, z);
-    }
-    geo.computeVertexNormals();
-    return geo;
-}
-
-/**
- * Helper: Build a contoured area-ruled F-16 main fuselage hull along X
- */
-function buildSculptedFuselageGeometry() {
-    const pts = [];
-    const steps = 56;
-    const totalLen = 5.45;
-    for (let i = 0; i <= steps; i++) {
-        const u = i / steps; // 0 = aft nozzle junction, 1 = forward radome bulkhead
-        const x = (u - 0.5) * totalLen;
-        // Area-ruled wasp-waist contour + forebody taper
-        let r = 0.38;
-        if (u < 0.18) {
-            r = THREE.MathUtils.lerp(0.34, 0.41, u / 0.18);
-        } else if (u < 0.65) {
-            const mid = (u - 0.18) / 0.47;
-            r = 0.42 + Math.sin(mid * Math.PI) * 0.045;
-        } else {
-            const fwd = (u - 0.65) / 0.35;
-            r = THREE.MathUtils.lerp(0.42, 0.35, fwd);
-        }
-        pts.push(new THREE.Vector2(r, x));
-    }
-    const geo = new THREE.LatheGeometry(pts, 64);
-    geo.rotateZ(-Math.PI / 2);
-    // Slightly flatten bottom & widen chine waist for blended wing-body cross-section
-    const pos = geo.attributes.position;
-    for (let i = 0; i < pos.count; i++) {
-        const x = pos.getX(i);
-        let y = pos.getY(i);
-        let z = pos.getZ(i);
-        const waistBoost = Math.exp(-Math.pow((x - 0.2) / 1.8, 2)) * 0.18;
-        z *= 1.08 + waistBoost;
-        if (y < 0) y *= 0.84;
-        pos.setXYZ(i, x, y, z);
-    }
-    geo.computeVertexNormals();
-    return geo;
-}
-
-/**
- * SmoothViewCamera:
- * - Only animates when `selectedPart` changes to a non-null part OR `viewPreset` changes.
- * - Immediately yields control (`animFrames.current = 0`) the instant the user interacts with OrbitControls,
- *   so manual orbiting/panning/zooming is never fought by the animation loop.
- */
-function SmoothViewCamera({ viewPreset, selectedPart, explodeFactor, controlsRef, animFramesRef }) {
-    const { camera } = useThree();
-    const desiredPos = useRef(new THREE.Vector3(6.0, 2.35, 6.5));
-    const desiredTarget = useRef(new THREE.Vector3(0.15, 0.05, 0));
-    const prevSelectedRef = useRef(selectedPart);
-    const prevPresetRef = useRef(viewPreset);
-
-    useEffect(() => {
-        const partChanged = selectedPart !== prevSelectedRef.current;
-        const presetChanged = viewPreset !== prevPresetRef.current;
-        prevSelectedRef.current = selectedPart;
-        prevPresetRef.current = viewPreset;
-
-        if (!partChanged && !presetChanged) {
-            return;
-        }
-
-        if (selectedPart && partChanged) {
-            const p = F16_PARTS.find((item) => item.id === selectedPart);
-            if (p) {
-                const tx = p.basePos[0] + p.explodeOffset[0] * explodeFactor;
-                const ty = p.basePos[1] + p.explodeOffset[1] * explodeFactor;
-                const tz = p.basePos[2] + p.explodeOffset[2] * explodeFactor;
-                desiredTarget.current.set(tx, ty, tz);
-                desiredPos.current.set(
-                    tx + 3.6,
-                    ty + 1.65,
-                    tz + (tz >= 0 ? 4.2 : -4.2)
-                );
-                animFramesRef.current = 48;
-                return;
-            }
-        }
-
-        if (presetChanged || (partChanged && !selectedPart)) {
-            const preset = CAMERA_VIEWS[viewPreset] || CAMERA_VIEWS.overview;
-            desiredPos.current.set(...preset.pos);
-            desiredTarget.current.set(...preset.target);
-            animFramesRef.current = 45;
-        }
-    }, [viewPreset, selectedPart, explodeFactor, animFramesRef]);
-
-    useFrame((_, delta) => {
-        if (animFramesRef.current <= 0) return;
-        animFramesRef.current -= 1;
-        const alpha = Math.min(1, delta * 6.0);
-        camera.position.lerp(desiredPos.current, alpha);
-        if (controlsRef.current) {
-            controlsRef.current.target.lerp(desiredTarget.current, alpha);
-            controlsRef.current.update();
-        }
-        if (
-            camera.position.distanceTo(desiredPos.current) < 0.03 &&
-            controlsRef.current?.target.distanceTo(desiredTarget.current) < 0.03
-        ) {
-            animFramesRef.current = 0;
-        }
+  if (closeCaps && numRings >= 2) {
+    // Rear cap (ring 0)
+    const firstRing = rings[0];
+    let cx0 = 0;
+    let cy0 = 0;
+    let cz0 = 0;
+    firstRing.forEach((p) => {
+      cx0 += p[0];
+      cy0 += p[1];
+      cz0 += p[2];
     });
+    cx0 /= numRadial;
+    cy0 /= numRadial;
+    cz0 /= numRadial;
+    const centerIdx0 = positions.length / 3;
+    positions.push(cx0, cy0, cz0);
+    uvs.push(0, 0.5);
+    for (let j = 0; j < numRadial; j++) {
+      indices.push(centerIdx0, (j + 1) % numRadial, j);
+    }
 
-    return null;
+    // Front cap (last ring)
+    const lastRing = rings[numRings - 1];
+    let cx1 = 0;
+    let cy1 = 0;
+    let cz1 = 0;
+    lastRing.forEach((p) => {
+      cx1 += p[0];
+      cy1 += p[1];
+      cz1 += p[2];
+    });
+    cx1 /= numRadial;
+    cy1 /= numRadial;
+    cz1 /= numRadial;
+    const centerIdx1 = positions.length / 3;
+    positions.push(cx1, cy1, cz1);
+    uvs.push(1, 0.5);
+    const baseLast = (numRings - 1) * stride;
+    for (let j = 0; j < numRadial; j++) {
+      indices.push(centerIdx1, baseLast + j, baseLast + j + 1);
+    }
+  }
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geo.setIndex(indices);
+  geo.computeVertexNormals();
+  return geo;
 }
 
 /**
- * Animated Part Wrapper that smoothly interpolates its position along explodeOffset.
- * Clicking an already-selected part toggles it off (`null`) for Free Orbit mode.
+ * Builds a 3D tapered supersonic airfoil surface (wing, stabilator, or vertical fin)
+ * using NACA 64A204 / biconvex cross-sections lofted from root to tip.
+ */
+function buildTaperedAirfoilGeo({
+  rootX0,
+  rootX1,
+  tipX0,
+  tipX1,
+  spanZ,
+  rootThick,
+  tipThick,
+  camber = 0.012,
+  spanSteps = 20,
+  chordSteps = 28,
+  vertical = false,
+}) {
+  const rings = [];
+  for (let s = 0; s <= spanSteps; s++) {
+    const v = s / spanSteps;
+    const xLE = THREE.MathUtils.lerp(rootX0, tipX0, v);
+    const xTE = THREE.MathUtils.lerp(rootX1, tipX1, v);
+    const chord = Math.max(0.05, xLE - xTE);
+    const thick = THREE.MathUtils.lerp(rootThick, tipThick, v);
+    const zPos = v * spanZ;
+
+    const ring = [];
+    for (let k = 0; k < chordSteps * 2; k++) {
+      const isUpper = k < chordSteps;
+      const frac = isUpper
+        ? k / (chordSteps - 1)
+        : 1 - (k - chordSteps) / (chordSteps - 1);
+      // Cosine spacing for crisp leading and trailing edges
+      const cFrac = 0.5 * (1 - Math.cos(frac * Math.PI));
+      const x = xLE - cFrac * chord;
+
+      // NACA-style thickness distribution + slight camber
+      const yt =
+        5 *
+        thick *
+        chord *
+        (0.2969 * Math.sqrt(cFrac) -
+          0.126 * cFrac -
+          0.3516 * cFrac * cFrac +
+          0.2843 * Math.pow(cFrac, 3) -
+          0.1015 * Math.pow(cFrac, 4));
+      const yc = camber * chord * Math.sin(cFrac * Math.PI);
+      const y = isUpper ? yc + yt : yc - yt * 0.85;
+
+      if (vertical) {
+        // Vertical fin: span is along +Y, thickness is along Z
+        ring.push([x, zPos, isUpper ? yt : -yt]);
+      } else {
+        ring.push([x, y, zPos]);
+      }
+    }
+    rings.push(ring);
+  }
+  return buildLoftedBufferGeometry(rings, true);
+}
+
+/**
+ * Generates a high-DPI procedural canvas texture for the F-16C vertical tail fin
+ * ("AF 80 025" tail code, tactical squadron stripe, and star insignia — Video 1 style).
+ */
+function useTailFinTexture() {
+  return useMemo(() => {
+    if (typeof document === 'undefined') return null;
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 512;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+
+    // Base tactical compass-ghost gray paint
+    ctx.fillStyle = '#94A3B8';
+    ctx.fillRect(0, 0, 512, 512);
+
+    // Subtle structural panel lines
+    ctx.strokeStyle = 'rgba(30, 41, 59, 0.28)';
+    ctx.lineWidth = 2;
+    for (let y = 80; y < 460; y += 75) {
+      ctx.beginPath();
+      ctx.moveTo(20, y);
+      ctx.lineTo(490, y - 25);
+      ctx.stroke();
+    }
+
+    // Upper fin tactical squadron flash band (navy + gold/blue accent)
+    ctx.fillStyle = '#1E293B';
+    ctx.fillRect(0, 54, 512, 34);
+    ctx.fillStyle = '#2E8BFF';
+    ctx.fillRect(0, 88, 512, 8);
+    ctx.fillStyle = '#F4B740';
+    ctx.fillRect(0, 96, 512, 5);
+
+    // "AF 80 025" tail serial markings
+    ctx.fillStyle = '#1E293B';
+    ctx.font = 'bold 28px monospace';
+    ctx.fillText('AF', 160, 155);
+    ctx.font = 'bold 22px monospace';
+    ctx.fillText('80', 205, 155);
+    ctx.font = 'bold 46px monospace';
+    ctx.fillText('025', 155, 202);
+
+    // Tactical Wing Code "SW"
+    ctx.font = 'bold 64px sans-serif';
+    ctx.fillStyle = '#0F172A';
+    ctx.fillText('SW', 155, 310);
+
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.needsUpdate = true;
+    return tex;
+  }, []);
+}
+
+/**
+ * Camera controller that ONLY tweens when `selectedPart` or `viewPreset` changes,
+ * and immediately yields when the user drags/zooms OrbitControls (`animFrames = 0`).
+ */
+function SmoothViewCamera({
+  viewPreset,
+  selectedPart,
+  explodeFactor,
+  controlsRef,
+  animFramesRef,
+}) {
+  const { camera } = useThree();
+  const desiredPos = useRef(new THREE.Vector3(6.4, 2.3, 6.8));
+  const desiredTarget = useRef(new THREE.Vector3(0.1, 0, 0));
+  const explodeRef = useRef(explodeFactor);
+
+  useEffect(() => {
+    explodeRef.current = explodeFactor;
+  }, [explodeFactor]);
+
+  useEffect(() => {
+    if (selectedPart && viewPreset === 'overview') {
+      const p = F16_PARTS.find((item) => item.id === selectedPart);
+      if (p) {
+        const ef = explodeRef.current;
+        const tx = p.basePos[0] + p.explodeOffset[0] * ef;
+        const ty = p.basePos[1] + p.explodeOffset[1] * ef;
+        const tz = p.basePos[2] + p.explodeOffset[2] * ef;
+        desiredTarget.current.set(tx, ty, tz);
+        desiredPos.current.set(
+          tx + 3.8,
+          ty + 1.75,
+          tz + (tz >= 0 ? 4.4 : -4.4)
+        );
+        animFramesRef.current = 45;
+        return;
+      }
+    }
+    const preset = CAMERA_VIEWS[viewPreset] || CAMERA_VIEWS.overview;
+    desiredPos.current.set(...preset.pos);
+    desiredTarget.current.set(...preset.target);
+    animFramesRef.current = 45;
+  }, [viewPreset, selectedPart, animFramesRef]);
+
+  useFrame((_, delta) => {
+    if (animFramesRef.current <= 0) return;
+    animFramesRef.current -= 1;
+    const alpha = Math.min(1, delta * 5.5);
+    camera.position.lerp(desiredPos.current, alpha);
+    if (controlsRef.current) {
+      controlsRef.current.target.lerp(desiredTarget.current, alpha);
+      controlsRef.current.update();
+    }
+  });
+
+  return null;
+}
+
+/**
+ * Animated Part Wrapper with theme-aware callout pill and toggle-deselect on click
  */
 function ExplodablePartGroup({
-    part,
-    explodeFactor,
-    isSelected,
-    isHovered,
-    onSelect,
-    onHover,
-    showLabels,
-    children,
+  part,
+  explodeFactor,
+  isSelected,
+  isHovered,
+  onSelect,
+  onHover,
+  showLabels,
+  children,
 }) {
-    const groupRef = useRef();
-    const currentPos = useRef(new THREE.Vector3(...part.basePos));
-    const targetVec = useMemo(() => new THREE.Vector3(), []);
+  const groupRef = useRef();
+  const currentPos = useRef(new THREE.Vector3(...part.basePos));
 
-    useFrame((_, delta) => {
-        if (!groupRef.current) return;
-        const tx = part.basePos[0] + part.explodeOffset[0] * explodeFactor;
-        const ty = part.basePos[1] + part.explodeOffset[1] * explodeFactor;
-        const tz = part.basePos[2] + part.explodeOffset[2] * explodeFactor;
-        targetVec.set(tx, ty, tz);
-        currentPos.current.lerp(targetVec, Math.min(1, delta * 7.5));
-        groupRef.current.position.copy(currentPos.current);
-    });
+  useFrame((_, delta) => {
+    if (!groupRef.current) return;
+    const tx = part.basePos[0] + part.explodeOffset[0] * explodeFactor;
+    const ty = part.basePos[1] + part.explodeOffset[1] * explodeFactor;
+    const tz = part.basePos[2] + part.explodeOffset[2] * explodeFactor;
+    currentPos.current.lerp(new THREE.Vector3(tx, ty, tz), Math.min(1, delta * 8.0));
+    groupRef.current.position.copy(currentPos.current);
+  });
 
-    const showPin = showLabels && (explodeFactor > 0.08 || isSelected || isHovered);
+  const showPin = showLabels && (explodeFactor > 0.08 || isSelected || isHovered);
 
-    return (
-        <group
-            ref={groupRef}
-            position={part.basePos}
-            onClick={(e) => {
+  return (
+    <group
+      ref={groupRef}
+      position={part.basePos}
+      onClick={(e) => {
+        e.stopPropagation();
+        onSelect(isSelected ? null : part.id);
+      }}
+      onPointerOver={(e) => {
+        e.stopPropagation();
+        document.body.style.cursor = 'pointer';
+        onHover(part.id);
+      }}
+      onPointerOut={() => {
+        document.body.style.cursor = 'auto';
+        onHover(null);
+      }}
+    >
+      {children}
+
+      {showPin && (
+        <>
+          <Line
+            points={[part.anchorOffset, part.labelOffset]}
+            color={isSelected ? '#F4B740' : '#2E8BFF'}
+            lineWidth={isSelected ? 2.0 : 1.2}
+            transparent
+            opacity={isSelected ? 0.95 : 0.65}
+          />
+          <mesh position={part.anchorOffset}>
+            <sphereGeometry args={[isSelected ? 0.055 : 0.042, 16, 16]} />
+            <meshBasicMaterial color={isSelected ? '#F4B740' : '#2E8BFF'} />
+          </mesh>
+          <Html
+            position={part.labelOffset}
+            center
+            distanceFactor={11}
+            zIndexRange={[10, 0]}
+          >
+            <button
+              type="button"
+              onClick={(e) => {
                 e.stopPropagation();
                 onSelect(isSelected ? null : part.id);
-            }}
-            onPointerOver={(e) => {
-                e.stopPropagation();
-                document.body.style.cursor = 'pointer';
-                onHover(part.id);
-            }}
-            onPointerOut={() => {
-                document.body.style.cursor = 'auto';
-                onHover(null);
-            }}
-        >
-            {children}
-
-            {showPin && (
-                <>
-                    <Line
-                        points={[part.anchorOffset, part.labelOffset]}
-                        color={isSelected ? '#F4B740' : '#2E8BFF'}
-                        lineWidth={isSelected ? 2.0 : 1.15}
-                        transparent
-                        opacity={isSelected ? 0.96 : 0.65}
-                    />
-                    <mesh position={part.anchorOffset}>
-                        <sphereGeometry args={[isSelected ? 0.052 : 0.04, 16, 16]} />
-                        <meshBasicMaterial color={isSelected ? '#F4B740' : '#2BC8FF'} />
-                    </mesh>
-                    <Html position={part.labelOffset} center distanceFactor={11} zIndexRange={[10, 0]}>
-                        <button
-                            type="button"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                onSelect(isSelected ? null : part.id);
-                            }}
-                            title={isSelected ? 'Click to deselect (Free Orbit)' : `Inspect ${part.name}`}
-                            style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '6px',
-                                padding: '4px 10px',
-                                borderRadius: '999px',
-                                background: 'var(--glass-bg-strong)',
-                                backdropFilter: 'blur(12px)',
-                                border: isSelected
-                                    ? '1px solid var(--accent-gold)'
-                                    : '1px solid var(--glass-border)',
-                                color: isSelected ? 'var(--accent-gold)' : 'var(--glass-text)',
-                                fontFamily: 'var(--font-mono)',
-                                fontSize: '10px',
-                                fontWeight: 600,
-                                whiteSpace: 'nowrap',
-                                cursor: 'pointer',
-                                boxShadow: 'var(--shadow-md)',
-                            }}
-                        >
-                            <span
-                                style={{
-                                    width: '6px',
-                                    height: '6px',
-                                    borderRadius: '99px',
-                                    background: isSelected ? 'var(--accent-gold)' : 'var(--accent-cyan)',
-                                }}
-                            />
-                            <span>{part.index} · {part.shortLabel}</span>
-                        </button>
-                    </Html>
-                </>
-            )}
-        </group>
-    );
+              }}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '4px 10px',
+                borderRadius: '999px',
+                background: 'var(--glass-bg-strong)',
+                backdropFilter: 'blur(12px)',
+                border: isSelected
+                  ? '1px solid var(--accent-gold)'
+                  : '1px solid var(--glass-border)',
+                color: isSelected ? 'var(--accent-gold)' : 'var(--glass-text)',
+                fontFamily: 'var(--font-mono)',
+                fontSize: '10px',
+                fontWeight: isSelected ? 700 : 600,
+                whiteSpace: 'nowrap',
+                cursor: 'pointer',
+                boxShadow: isSelected
+                  ? '0 0 16px rgba(244, 183, 64, 0.35)'
+                  : 'var(--shadow-sm)',
+              }}
+            >
+              <span
+                style={{
+                  width: '6px',
+                  height: '6px',
+                  borderRadius: '99px',
+                  background: isSelected ? 'var(--accent-gold)' : 'var(--accent-primary)',
+                }}
+              />
+              <span>{part.shortLabel}</span>
+            </button>
+          </Html>
+        </>
+      )}
+    </group>
+  );
 }
 
 /**
- * High-Detail Sculpted 3D F-16C Block 50 Fighting Falcon Mesh Assembly
+ * Cohesive, Semi-Realistic Lofted 3D F-16C Block 50 Fighting Falcon
  */
 function F16SculptedModel({
-    explodeFactor = 0,
-    selectedPart = null,
-    hoveredPart = null,
-    onSelectPart,
-    onHoverPart,
-    flightMode = false,
-    wireframe = false,
-    showLabels = true,
-    rigState = {},
+  explodeFactor = 0,
+  selectedPart = null,
+  hoveredPart = null,
+  onSelectPart,
+  onHoverPart,
+  flightMode = false,
+  wireframe = false,
+  showLabels = true,
+  rigState = {},
 }) {
-    const aircraftRootRef = useRef();
-    const afterburnerRef = useRef();
-    const streamlinesRef = useRef();
+  const aircraftRootRef = useRef();
+  const afterburnerRef = useRef();
+  const streamlinesRef = useRef();
+  const intakeFanRef = useRef();
+  const tailTexture = useTailFinTexture();
 
-    // High-resolution procedural aerodynamic geometries with automatic GPU cleanup
-    const {
-        radomeGeo,
-        canopyGeo,
-        fuselageGeo,
-        wingGeo,
-        flaperonGeo,
-        vTailGeo,
-        stabilatorGeo,
-        strakeGeo,
-    } = useMemo(() => {
-        const rGeo = buildOgiveRadomeGeometry(1.52, 0.35, 48, 64);
-        const cGeo = buildBubbleCanopyGeometry();
-        const fGeo = buildSculptedFuselageGeometry();
+  // Build cohesive, interlocking lofted geometries for all 12 assemblies
+  const geometries = useMemo(() => {
+    const radialSegs = 56;
 
-        // NACA 64A204 cropped-delta main wing
-        const wGeo = buildLoftedAirfoilGeometry({
-            rootChord: 2.25,
-            tipChord: 0.56,
-            span: 2.08,
-            sweepOffset: 0.68,
-            dihedralOffset: 0.0,
-            camber: 0.014,
-            maxCamberLoc: 0.4,
-            thickness: 0.046,
-            profileSegments: 48,
-            spanSegments: 18,
-            vertical: false,
-        });
+    // -------------------------------------------------------------------------
+    // 1. RADOME: Drooped Sears-Haack Elliptical Ogive (x_local: 0 -> +1.85)
+    //    Matches fuselage forward bulkhead at x_local = 0 (ry=0.31, rz=0.36)
+    // -------------------------------------------------------------------------
+    const radomeRings = [];
+    const rSteps = 36;
+    for (let i = 0; i <= rSteps; i++) {
+      const u = i / rSteps; // 0 = base bulkhead, 1 = nose apex
+      const x = u * 1.85;
+      const shapeFactor = Math.pow(1 - u, 0.58) * (1 + 0.16 * u * (1 - u));
+      const ry = Math.max(0.004, 0.31 * shapeFactor);
+      const rz = Math.max(0.004, 0.36 * shapeFactor * (1 + 0.08 * Math.sin(u * Math.PI)));
+      const yDroop = -0.045 * Math.pow(u, 1.55);
 
-        // Tapered trailing-edge flaperon
-        const flpGeo = buildLoftedAirfoilGeometry({
-            rootChord: 0.36,
-            tipChord: 0.24,
-            span: 1.42,
-            sweepOffset: 0.08,
-            dihedralOffset: 0.0,
-            camber: 0.008,
-            maxCamberLoc: 0.4,
-            thickness: 0.06,
-            profileSegments: 28,
-            spanSegments: 8,
-            vertical: false,
-        });
+      const ring = [];
+      for (let j = 0; j < radialSegs; j++) {
+        const theta = (j / radialSegs) * Math.PI * 2;
+        const chinePinch = 1 + 0.06 * Math.pow(Math.cos(theta), 2) * (1 - u);
+        ring.push([
+          x,
+          yDroop + ry * Math.sin(theta),
+          rz * Math.cos(theta) * chinePinch,
+        ]);
+      }
+      radomeRings.push(ring);
+    }
+    const radomeGeo = buildLoftedBufferGeometry(radomeRings, true);
 
-        // High-sweep biconvex vertical stabilizer
-        const vGeo = buildLoftedAirfoilGeometry({
-            rootChord: 1.62,
-            tipChord: 0.56,
-            span: 1.42,
-            sweepOffset: 0.82,
-            dihedralOffset: 0.0,
-            camber: 0.0,
-            maxCamberLoc: 0.5,
-            thickness: 0.055,
-            profileSegments: 40,
-            spanSegments: 14,
-            vertical: true,
-        });
+    // -------------------------------------------------------------------------
+    // 2. AIRFRAME: Continuous Blended Wing-Body (x: -2.82 -> +2.65)
+    //    Integrates main oval fuselage, forebody LERX chine strakes, and dorsal
+    //    avionics spine into a single seamless mesh with zero primitive boxes.
+    //    At x = +2.65: matches radome base (ry=0.31, rz=0.36).
+    //    At x = -2.82: matches F110 exhaust nozzle shroud (circular r=0.39).
+    // -------------------------------------------------------------------------
+    const fuseRings = [];
+    const fSteps = 56;
+    for (let i = 0; i <= fSteps; i++) {
+      const u = i / fSteps; // 0 = aft nozzle (-2.82), 1 = forward radome bulkhead (+2.65)
+      const x = -2.82 + u * 5.47;
 
-        // Swept all-moving horizontal stabilator with 10° anhedral droop
-        const sGeo = buildLoftedAirfoilGeometry({
-            rootChord: 1.02,
-            tipChord: 0.34,
-            span: 1.05,
-            sweepOffset: 0.42,
-            dihedralOffset: -0.14,
-            camber: 0.0,
-            maxCamberLoc: 0.5,
-            thickness: 0.042,
-            profileSegments: 36,
-            spanSegments: 12,
-            vertical: false,
-        });
+      // Smoothly transition from circular nozzle (u=0) -> wide BWB mid-body -> radome bulkhead (u=1)
+      const endBlend = Math.sin(u * Math.PI);
+      const baseRy =
+        0.39 * (1 - u) + 0.31 * u + 0.08 * Math.sin(u * Math.PI * 0.9);
+      const baseRz =
+        0.39 * (1 - u) + 0.36 * u + 0.16 * Math.pow(endBlend, 0.85);
 
-        // Smooth contoured Forebody LERX Strake
-        const lShape = new THREE.Shape();
-        lShape.moveTo(2.48, 0);
-        lShape.bezierCurveTo(1.85, 0.36, 1.15, 0.62, 0.45, 0.68);
-        lShape.lineTo(-1.25, 0.7);
-        lShape.lineTo(-1.25, 0);
-        lShape.closePath();
-        const lGeo = new THREE.ExtrudeGeometry(lShape, {
-            depth: 0.045,
-            bevelEnabled: true,
-            bevelThickness: 0.022,
-            bevelSize: 0.022,
-            bevelSegments: 5,
-            curveSegments: 32,
-        });
-        lGeo.rotateX(Math.PI / 2);
-        lGeo.computeVertexNormals();
+      // Forebody & mid-body chine / LERX strake horizontal extension (active from x = -1.6 to +2.55)
+      let chineWidth = 0;
+      if (x > -1.8 && x < 2.58) {
+        const tChine = (x - -1.8) / (2.58 - -1.8); // 0 aft, 1 forward
+        chineWidth = 0.38 * Math.sin(tChine * Math.PI) * (1 - 0.25 * tChine);
+      }
 
-        return {
-            radomeGeo: rGeo,
-            canopyGeo: cGeo,
-            fuselageGeo: fGeo,
-            wingGeo: wGeo,
-            flaperonGeo: flpGeo,
-            vTailGeo: vGeo,
-            stabilatorGeo: sGeo,
-            strakeGeo: lGeo,
-        };
-    }, []);
+      // Dorsal avionics spine along top (x from -2.55 to +0.85)
+      let spineHeight = 0;
+      if (x > -2.65 && x < 0.95) {
+        const tSpine = (x - -2.65) / (0.95 - -2.65);
+        spineHeight = 0.19 * Math.sin(tSpine * Math.PI);
+      }
 
-    useEffect(() => {
-        return () => {
-            radomeGeo.dispose();
-            canopyGeo.dispose();
-            fuselageGeo.dispose();
-            wingGeo.dispose();
-            flaperonGeo.dispose();
-            vTailGeo.dispose();
-            stabilatorGeo.dispose();
-            strakeGeo.dispose();
-        };
-    }, [radomeGeo, canopyGeo, fuselageGeo, wingGeo, flaperonGeo, vTailGeo, stabilatorGeo, strakeGeo]);
+      // Cockpit recess depression along top forebody (x from +0.65 to +2.25)
+      let cockpitRecess = 0;
+      if (x > 0.6 && x < 2.3) {
+        const tCockpit = (x - 0.6) / (2.3 - 0.6);
+        cockpitRecess = 0.06 * Math.sin(tCockpit * Math.PI);
+      }
 
-    // Flight mode gentle banking, pitch & afterburner pulse
-    useFrame(({ clock }, delta) => {
-        const t = clock.getElapsedTime();
-        if (aircraftRootRef.current) {
-            const targetPitch = flightMode
-                ? ((rigState.aoaDeg ?? 5) * Math.PI) / 180 + Math.sin(t * 1.4) * 0.03
-                : ((rigState.aoaDeg ?? 0) * Math.PI) / 180 * 0.25;
-            const targetRoll = flightMode
-                ? ((rigState.aileronDeg ?? 0) * Math.PI) / 180 * 0.6 + Math.sin(t * 0.9) * 0.08
-                : ((rigState.aileronDeg ?? 0) * Math.PI) / 180 * 0.35;
-            const targetY = flightMode ? 0.22 + Math.sin(t * 1.8) * 0.08 : 0;
+      const ring = [];
+      for (let j = 0; j < radialSegs; j++) {
+        const theta = (j / radialSegs) * Math.PI * 2;
+        const cosT = Math.cos(theta); // horizontal (+Z / -Z)
+        const sinT = Math.sin(theta); // vertical (+Y / -Y)
 
-            aircraftRootRef.current.rotation.z = THREE.MathUtils.lerp(
-                aircraftRootRef.current.rotation.z,
-                targetPitch,
-                delta * 4
-            );
-            aircraftRootRef.current.rotation.x = THREE.MathUtils.lerp(
-                aircraftRootRef.current.rotation.x,
-                targetRoll,
-                delta * 4
-            );
-            aircraftRootRef.current.position.y = THREE.MathUtils.lerp(
-                aircraftRootRef.current.position.y,
-                targetY,
-                delta * 4
-            );
+        // Sharp horizontal chine lobe near y ≈ +0.04
+        const chineLobe = Math.pow(Math.abs(cosT), 3.2) * Math.exp(-Math.pow(sinT - 0.1, 2) * 8.0);
+        // Narrow dorsal spine lobe near top (sinT > 0.65)
+        const spineLobe =
+          sinT > 0 ? Math.pow(sinT, 5.0) * Math.pow(1 - Math.abs(cosT), 1.5) : 0;
+
+        const z = (baseRz + chineWidth * chineLobe) * cosT;
+        let y = baseRy * sinT + spineHeight * spineLobe;
+        if (sinT > 0.4) {
+          y -= cockpitRecess * Math.pow(sinT, 2);
         }
-
-        if (afterburnerRef.current) {
-            const pulse = 0.92 + Math.sin(t * 30) * 0.1;
-            afterburnerRef.current.scale.set(1, pulse, pulse);
+        // Slight flat bottom ahead of intake
+        if (sinT < -0.5 && x > 0.4) {
+          y *= 0.88;
         }
+        ring.push([x, y, z]);
+      }
+      fuseRings.push(ring);
+    }
+    const fuselageGeo = buildLoftedBufferGeometry(fuseRings, true);
 
-        if (streamlinesRef.current && flightMode) {
-            const pos = streamlinesRef.current.geometry.attributes.position;
-            for (let i = 0; i < pos.count; i++) {
-                let x = pos.getX(i) - delta * 14.0;
-                if (x < -5.2) x = 5.2;
-                pos.setX(i, x);
-            }
-            pos.needsUpdate = true;
-        }
+    // -------------------------------------------------------------------------
+    // 3. COCKPIT CANOPY: Sculpted Teardrop Bubble Canopy (around basePos [1.42, 0.26, 0])
+    //    x_local: -1.12 (aft spine fairing) -> +0.98 (forward windscreen sill)
+    // -------------------------------------------------------------------------
+    const canopyRings = [];
+    const cSteps = 32;
+    const cRadial = 36;
+    for (let i = 0; i <= cSteps; i++) {
+      const u = i / cSteps; // 0 = aft, 1 = front apex
+      const x = -1.12 + u * 2.1;
+      const env = Math.sin(u * Math.PI);
+      // Teardrop profile: taller forward-mid, tapering smoothly aft
+      const tear = Math.pow(env, 0.72) * (1 + 0.22 * Math.sin(u * Math.PI * 2 - 0.6));
+      const widthZ = Math.max(0.005, 0.31 * Math.pow(env, 0.65));
+      const heightY = Math.max(0.005, 0.37 * tear);
+      const sillY = -0.04 * Math.sin(u * Math.PI);
+
+      const ring = [];
+      for (let j = 0; j < cRadial; j++) {
+        // Upper dome + tucked lower rim
+        const theta = (j / cRadial) * Math.PI * 2;
+        const cosT = Math.cos(theta);
+        const sinT = Math.sin(theta);
+        const y =
+          sinT >= 0
+            ? sillY + heightY * Math.pow(sinT, 0.88)
+            : sillY + 0.045 * sinT * env;
+        const z = widthZ * cosT;
+        ring.push([x, y, z]);
+      }
+      canopyRings.push(ring);
+    }
+    const canopyGeo = buildLoftedBufferGeometry(canopyRings, true);
+
+    // -------------------------------------------------------------------------
+    // 4. SUPERSONIC VENTRAL INTAKE: Lofted Smiling D-Duct (around basePos [0.85, -0.38, 0])
+    //    x_local: -2.15 (aft ventral fairing) -> +0.92 (swept normal-shock lip)
+    // -------------------------------------------------------------------------
+    const intakeRings = [];
+    const inSteps = 28;
+    const inRadial = 40;
+    for (let i = 0; i <= inSteps; i++) {
+      const u = i / inSteps; // 0 = aft belly blend, 1 = forward inlet mouth
+      const x = -2.15 + u * 3.07;
+      const aftTaper = u < 0.25 ? Math.pow(u / 0.25, 0.6) : 1.0;
+      const widthZ = (0.36 + 0.05 * Math.sin(u * Math.PI)) * aftTaper;
+      const heightY = (0.21 + 0.03 * Math.sin(u * Math.PI)) * aftTaper;
+
+      const ring = [];
+      for (let j = 0; j < inRadial; j++) {
+        const theta = (j / inRadial) * Math.PI * 2;
+        const cosT = Math.cos(theta);
+        const sinT = Math.sin(theta);
+        // D-duct: flat top splitter plate (sinT > 0), rounded smiling lower lip (sinT < 0)
+        const y =
+          sinT > 0
+            ? heightY * 0.62 * Math.tanh(sinT * 2.4)
+            : heightY * 1.15 * sinT;
+        const z = widthZ * cosT * (1 - 0.08 * Math.max(0, -sinT));
+        // Swept inlet lip rake at front
+        const xRake = u > 0.85 ? ((u - 0.85) / 0.15) * 0.14 * sinT : 0;
+        ring.push([x + xRake, y, z]);
+      }
+      intakeRings.push(ring);
+    }
+    const intakeGeo = buildLoftedBufferGeometry(intakeRings, false);
+
+    // -------------------------------------------------------------------------
+    // 5. CROPPED-DELTA WING: True 3D Tapered NACA 64A204 Airfoil Surface
+    //    Span from z_local = 0 (wing root) to z_local = +2.16 (wingtip rail)
+    // -------------------------------------------------------------------------
+    const wingGeo = buildTaperedAirfoilGeo({
+      rootX0: 1.18,
+      rootX1: -1.16,
+      tipX0: -0.34,
+      tipX1: -1.04,
+      spanZ: 2.16,
+      rootThick: 0.048,
+      tipThick: 0.038,
+      camber: 0.01,
+      spanSteps: 22,
+      chordSteps: 28,
+      vertical: false,
     });
 
-    // Deterministic flight streamlines
-    const streamPositions = useMemo(() => {
-        const count = 180;
-        const arr = new Float32Array(count * 3);
-        for (let i = 0; i < count; i++) {
-            const s1 = ((i * 73 + 11) % 101) / 101;
-            const s2 = ((i * 139 + 29) % 97) / 97;
-            const s3 = ((i * 197 + 47) % 89) / 89;
-            arr[i * 3] = (s1 - 0.5) * 10.4;
-            arr[i * 3 + 1] = (s2 - 0.45) * 2.2;
-            arr[i * 3 + 2] = (s3 - 0.5) * 5.8;
-        }
-        return arr;
-    }, []);
+    // -------------------------------------------------------------------------
+    // 6. VERTICAL STABILIZER FIN: True 3D Tapered Supersonic Biconvex Fin
+    //    Span along +Y from 0 to +1.52
+    // -------------------------------------------------------------------------
+    const vTailGeo = buildTaperedAirfoilGeo({
+      rootX0: 1.02,
+      rootX1: -0.82,
+      tipX0: -0.34,
+      tipX1: -0.98,
+      spanZ: 1.52,
+      rootThick: 0.052,
+      tipThick: 0.038,
+      camber: 0.0,
+      spanSteps: 18,
+      chordSteps: 24,
+      vertical: true,
+    });
 
-    // Realistic USAF two-tone Ghost Grey tactical satin finish + clearcoat
-    const matProps = (partId, baseColor = '#CBD5E1', metalness = 0.52, roughness = 0.32) => {
-        const isSel = selectedPart === partId;
-        const isHov = hoveredPart === partId;
-        if (wireframe) {
-            return {
-                color: isSel ? '#F4B740' : isHov ? '#5AA6FF' : '#2E8BFF',
-                emissive: isSel ? '#D97706' : '#1D4ED8',
-                emissiveIntensity: isSel ? 0.65 : 0.3,
-                wireframe: true,
-            };
-        }
-        return {
-            color: isSel ? '#FFE082' : isHov ? '#93C5FD' : baseColor,
-            emissive: isSel ? '#B45309' : isHov ? '#1D4ED8' : '#000000',
-            emissiveIntensity: isSel ? 0.32 : isHov ? 0.22 : 0,
-            metalness,
-            roughness,
-        };
+    // -------------------------------------------------------------------------
+    // 7. ALL-MOVING STABILATOR: Tapered Supersonic Biconvex Surface
+    // -------------------------------------------------------------------------
+    const stabilatorGeo = buildTaperedAirfoilGeo({
+      rootX0: 0.56,
+      rootX1: -0.52,
+      tipX0: -0.18,
+      tipX1: -0.62,
+      spanZ: 1.08,
+      rootThick: 0.042,
+      tipThick: 0.03,
+      camber: 0.0,
+      spanSteps: 14,
+      chordSteps: 20,
+      vertical: false,
+    });
+
+    // -------------------------------------------------------------------------
+    // 8. 370-GALLON SEARS-HAACK DROP TANK
+    // -------------------------------------------------------------------------
+    const tankPts = [];
+    const tLen = 2.15;
+    for (let i = 0; i <= 36; i++) {
+      const u = i / 36;
+      const y = (u - 0.5) * tLen;
+      const r = 0.16 * Math.sin(u * Math.PI) * (1 + 0.16 * Math.sin(u * Math.PI));
+      tankPts.push(new THREE.Vector2(Math.max(0.003, r), y));
+    }
+    const dropTankGeo = new THREE.LatheGeometry(tankPts, 36);
+    dropTankGeo.rotateZ(-Math.PI / 2);
+
+    return {
+      radomeGeo,
+      fuselageGeo,
+      canopyGeo,
+      intakeGeo,
+      wingGeo,
+      vTailGeo,
+      stabilatorGeo,
+      dropTankGeo,
     };
+  }, []);
 
-    const getPart = (id) => F16_PARTS.find((p) => p.id === id);
+  useEffect(() => {
+    return () => {
+      Object.values(geometries).forEach((g) => g?.dispose?.());
+    };
+  }, [geometries]);
 
-    const flapRad = ((rigState.flapDeg ?? 0) * Math.PI) / 180;
-    const aileronRad = ((rigState.aileronDeg ?? 0) * Math.PI) / 180;
-    const elevRad = ((rigState.elevatorDeg ?? 0) * Math.PI) / 180;
-    const rudderRad = ((rigState.rudderDeg ?? 0) * Math.PI) / 180;
+  // Flight mode animation, afterburner shock-diamond pulse & intake compressor spin
+  useFrame((state, delta) => {
+    const t = state.clock.elapsedTime;
+    if (aircraftRootRef.current) {
+      const targetPitch = flightMode
+        ? ((rigState.aoaDeg ?? 4.5) * Math.PI) / 180 + Math.sin(t * 1.4) * 0.025
+        : ((rigState.aoaDeg ?? 0) * Math.PI) / 180 * 0.25;
+      const targetRoll = flightMode
+        ? ((rigState.aileronDeg ?? 0) * Math.PI) / 180 * 0.6 + Math.sin(t * 0.9) * 0.06
+        : ((rigState.aileronDeg ?? 0) * Math.PI) / 180 * 0.35;
+      const targetY = flightMode ? 0.22 + Math.sin(t * 1.8) * 0.06 : 0;
 
-    return (
-        <group ref={aircraftRootRef}>
-            {/* ============================================================= */}
-            {/* 01 // RADOME & AN/APG-68 PULSE-DOPPLER FIRE-CONTROL RADAR     */}
-            {/* ============================================================= */}
-            <ExplodablePartGroup
-                part={getPart('radome')}
-                explodeFactor={explodeFactor}
-                isSelected={selectedPart === 'radome'}
-                isHovered={hoveredPart === 'radome'}
-                onSelect={onSelectPart}
-                onHover={onHoverPart}
-                showLabels={showLabels}
-            >
-                {/* Sears-Haack Tangent-Ogive Dielectric Nose Cone */}
-                <mesh geometry={radomeGeo} castShadow receiveShadow>
-                    <meshStandardMaterial {...matProps('radome', '#8392A7', 0.32, 0.42)} />
-                </mesh>
-                {/* Radome hinged bulkhead collar ring */}
-                <mesh position={[-0.75, 0, 0]} rotation={[0, Math.PI / 2, 0]}>
-                    <torusGeometry args={[0.345, 0.014, 16, 48]} />
-                    <meshStandardMaterial color="#475569" metalness={0.75} roughness={0.25} />
-                </mesh>
-                {/* Internal AN/APG-68 Slotted Planar Phased-Array Radar & Gimbal (visible when exploded) */}
-                <group position={[-0.68, 0, 0]}>
-                    <mesh rotation={[0, 0, Math.PI / 2]}>
-                        <cylinderGeometry args={[0.29, 0.29, 0.06, 40]} />
-                        <meshStandardMaterial color="#F4B740" metalness={0.85} roughness={0.18} />
-                    </mesh>
-                    <mesh position={[-0.12, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
-                        <cylinderGeometry args={[0.14, 0.22, 0.22, 24]} />
-                        <meshStandardMaterial color="#334155" metalness={0.7} roughness={0.3} />
-                    </mesh>
-                </group>
-                {/* Multi-step Pitot-Static Nose Boom & AoA Vanes */}
-                <mesh position={[0.92, 0, 0]} rotation={[0, 0, -Math.PI / 2]}>
-                    <cylinderGeometry args={[0.005, 0.018, 0.48, 16]} />
-                    <meshStandardMaterial color="#E2E8F0" metalness={0.9} roughness={0.15} />
-                </mesh>
-                {/* Static discharge strips along radome sides */}
-                {[-1, 1].map((s) => (
-                    <mesh key={s} position={[0.05, 0, s * 0.28]} rotation={[0, s * 0.22, 0]}>
-                        <boxGeometry args={[0.85, 0.008, 0.012]} />
-                        <meshStandardMaterial color="#475569" metalness={0.8} roughness={0.2} />
-                    </mesh>
-                ))}
-            </ExplodablePartGroup>
+      aircraftRootRef.current.rotation.z = THREE.MathUtils.lerp(
+        aircraftRootRef.current.rotation.z,
+        targetPitch,
+        delta * 4
+      );
+      aircraftRootRef.current.rotation.x = THREE.MathUtils.lerp(
+        aircraftRootRef.current.rotation.x,
+        targetRoll,
+        delta * 4
+      );
+      aircraftRootRef.current.position.y = THREE.MathUtils.lerp(
+        aircraftRootRef.current.position.y,
+        targetY,
+        delta * 4
+      );
+    }
 
-            {/* ============================================================= */}
-            {/* 02 // COCKPIT TUB, ACES II SEAT, HUD & TEARDROP BUBBLE CANOPY */}
-            {/* ============================================================= */}
-            <ExplodablePartGroup
-                part={getPart('cockpit')}
-                explodeFactor={explodeFactor}
-                isSelected={selectedPart === 'cockpit'}
-                isHovered={hoveredPart === 'cockpit'}
-                onSelect={onSelectPart}
-                onHover={onHoverPart}
-                showLabels={showLabels}
-            >
-                {/* Contoured Cockpit Tub & Sill Coaming */}
-                <mesh position={[0.05, -0.06, 0]} rotation={[0, 0, Math.PI / 2]}>
-                    <cylinderGeometry args={[0.28, 0.31, 1.65, 32, 1, false, Math.PI * 0.5, Math.PI]} />
-                    <meshStandardMaterial {...matProps('cockpit', '#1E293B', 0.45, 0.55)} />
-                </mesh>
-                {/* Forward Instrument Glare Shield */}
-                <mesh position={[0.56, 0.06, 0]} rotation={[0, 0, -0.18]}>
-                    <cylinderGeometry args={[0.22, 0.28, 0.45, 24, 1, false, 0, Math.PI]} />
-                    <meshStandardMaterial color="#0F172A" roughness={0.8} />
-                </mesh>
-                {/* Wide-Angle Holographic HUD Combiner Glass */}
-                <group position={[0.52, 0.19, 0]}>
-                    <mesh rotation={[0, 0, -0.46]}>
-                        <boxGeometry args={[0.014, 0.17, 0.18]} />
-                        <meshPhysicalMaterial
-                            color="#34D399"
-                            emissive="#10B981"
-                            emissiveIntensity={0.45}
-                            transparent
-                            opacity={0.68}
-                            roughness={0.05}
-                        />
-                    </mesh>
-                </group>
-                {/* ACES II 30° Reclined Ejection Seat */}
-                <group position={[-0.08, 0.04, 0]} rotation={[0, 0, 0.52]}>
-                    {/* Seat back & cushion */}
-                    <mesh position={[0, 0.12, 0]}>
-                        <boxGeometry args={[0.08, 0.44, 0.28]} />
-                        <meshStandardMaterial color="#1E293B" roughness={0.65} />
-                    </mesh>
-                    <mesh position={[0.1, -0.08, 0]}>
-                        <boxGeometry args={[0.24, 0.07, 0.28]} />
-                        <meshStandardMaterial color="#334155" roughness={0.7} />
-                    </mesh>
-                    {/* Parachute Headbox & Pitot Recovery Horns */}
-                    <mesh position={[-0.02, 0.36, 0]}>
-                        <boxGeometry args={[0.11, 0.14, 0.22]} />
-                        <meshStandardMaterial color="#475569" roughness={0.5} />
-                    </mesh>
-                </group>
-                {/* Canopy Arch Frame Bow */}
-                <mesh position={[-0.36, 0.02, 0]} rotation={[0, 0, -0.12]}>
-                    <torusGeometry args={[0.31, 0.022, 16, 36, Math.PI]} />
-                    <meshStandardMaterial color="#334155" metalness={0.7} roughness={0.3} />
-                </mesh>
-                {/* Seamless Gold-Indium-Tin Tinted Polycarbonate Teardrop Bubble Canopy */}
-                <mesh geometry={canopyGeo} position={[0.02, 0.02, 0]}>
-                    <meshPhysicalMaterial
-                        color={selectedPart === 'cockpit' ? '#FDE68A' : '#7DD3FC'}
-                        emissive={selectedPart === 'cockpit' ? '#D97706' : '#0284C7'}
-                        emissiveIntensity={selectedPart === 'cockpit' ? 0.22 : 0.08}
-                        transparent
-                        opacity={wireframe ? 0.85 : 0.42}
-                        metalness={0.22}
-                        roughness={0.06}
-                        clearcoat={1.0}
-                        clearcoatRoughness={0.05}
-                        wireframe={wireframe}
-                    />
-                </mesh>
-            </ExplodablePartGroup>
+    if (intakeFanRef.current) {
+      intakeFanRef.current.rotation.x += delta * (flightMode ? 18.0 : 5.5);
+    }
 
-            {/* ============================================================= */}
-            {/* 03 // CENTRAL WING-BODY BLENDED AIRFRAME & LERX STRAKES       */}
-            {/* ============================================================= */}
-            <ExplodablePartGroup
-                part={getPart('airframe')}
-                explodeFactor={explodeFactor}
-                isSelected={selectedPart === 'airframe'}
-                isHovered={hoveredPart === 'airframe'}
-                onSelect={onSelectPart}
-                onHover={onHoverPart}
-                showLabels={showLabels}
-            >
-                {/* Area-Ruled Blended Fuselage Hull */}
-                <mesh geometry={fuselageGeo} position={[0.08, 0.03, 0]} castShadow receiveShadow>
-                    <meshStandardMaterial {...matProps('airframe', '#CBD5E1', 0.52, 0.32)} />
-                </mesh>
-                {/* Smooth Contoured Dorsal Avionics Spine */}
-                <mesh position={[-0.45, 0.31, 0]} rotation={[0, 0, Math.PI / 2]}>
-                    <cylinderGeometry args={[0.19, 0.23, 3.85, 32, 1, false, 0, Math.PI]} />
-                    <meshStandardMaterial {...matProps('airframe', '#94A3B8', 0.48, 0.35)} />
-                </mesh>
-                {/* Blended Forebody Strakes (LERX) — Port & Starboard */}
-                <mesh geometry={strakeGeo} position={[0.1, 0.05, 0]} castShadow receiveShadow>
-                    <meshStandardMaterial {...matProps('airframe', '#CBD5E1', 0.52, 0.32)} />
-                </mesh>
-                <mesh geometry={strakeGeo} position={[0.1, 0.05, 0]} scale={[1, 1, -1]} castShadow receiveShadow>
-                    <meshStandardMaterial {...matProps('airframe', '#CBD5E1', 0.52, 0.32)} />
-                </mesh>
-                {/* M61A1 20mm Vulcan Rotary Cannon Port & Vent Louvers on Port Strake */}
-                <mesh position={[1.15, 0.14, -0.38]} rotation={[0, 0, Math.PI / 2]}>
-                    <cylinderGeometry args={[0.035, 0.048, 0.38, 16]} />
-                    <meshStandardMaterial color="#1E293B" metalness={0.85} roughness={0.25} />
-                </mesh>
-                {/* Aft Speedbrake Split Fairings (Port & Starboard of Nozzle) */}
-                {[-0.42, 0.42].map((zOff, i) => (
-                    <mesh key={i} position={[-2.58, 0.02, zOff]}>
-                        <boxGeometry args={[0.62, 0.12, 0.18]} />
-                        <meshStandardMaterial {...matProps('airframe', '#94A3B8', 0.55, 0.32)} />
-                    </mesh>
-                ))}
-            </ExplodablePartGroup>
+    if (afterburnerRef.current) {
+      const pulse = 0.94 + Math.sin(t * 32) * 0.1;
+      afterburnerRef.current.scale.set(pulse, 1, pulse);
+    }
 
-            {/* ============================================================= */}
-            {/* 04 // VENTRAL NORMAL-SHOCK SUPERSONIC CHIN INTAKE             */}
-            {/* ============================================================= */}
-            <ExplodablePartGroup
-                part={getPart('intake')}
-                explodeFactor={explodeFactor}
-                isSelected={selectedPart === 'intake'}
-                isHovered={hoveredPart === 'intake'}
-                onSelect={onSelectPart}
-                onHover={onHoverPart}
-                showLabels={showLabels}
-            >
-                {/* Sculpted Smiling Ventral Intake Duct */}
-                <mesh position={[-0.08, 0.06, 0]} rotation={[0, 0, Math.PI / 2]} scale={[1, 1, 1.24]} castShadow>
-                    <cylinderGeometry args={[0.29, 0.33, 2.35, 36, 1, false, Math.PI * 0.45, Math.PI * 1.1]} />
-                    <meshStandardMaterial {...matProps('intake', '#B8C4D4', 0.5, 0.34)} />
-                </mesh>
-                {/* Sharp Swept Intake Lip Rim */}
-                <mesh position={[1.09, 0.06, 0]} rotation={[0, Math.PI / 2, 0]} scale={[1.24, 0.88, 1]}>
-                    <torusGeometry args={[0.28, 0.022, 20, 48]} />
-                    <meshStandardMaterial {...matProps('intake', '#E2E8F0', 0.72, 0.22)} />
-                </mesh>
-                {/* Boundary-Layer Splitter Plate & Upper Diverter Strut */}
-                <mesh position={[1.18, 0.29, 0]}>
-                    <boxGeometry args={[0.46, 0.018, 0.56]} />
-                    <meshStandardMaterial {...matProps('intake', '#94A3B8', 0.6, 0.3)} />
-                </mesh>
-                <mesh position={[1.02, 0.35, 0]}>
-                    <boxGeometry args={[0.38, 0.1, 0.04]} />
-                    <meshStandardMaterial color="#475569" metalness={0.6} roughness={0.35} />
-                </mesh>
-                {/* Deep Acoustic Dark Inlet Throat + Visible Fan Face */}
-                <mesh position={[1.06, 0.06, 0]} rotation={[0, 0, -Math.PI / 2]} scale={[0.85, 1, 1.2]}>
-                    <circleGeometry args={[0.26, 32]} />
-                    <meshBasicMaterial color="#050811" side={THREE.DoubleSide} />
-                </mesh>
-            </ExplodablePartGroup>
+    if (streamlinesRef.current && flightMode) {
+      const pos = streamlinesRef.current.geometry.attributes.position;
+      for (let i = 0; i < pos.count; i++) {
+        let x = pos.getX(i) - delta * 15.0;
+        if (x < -5.4) x = 5.4;
+        pos.setX(i, x);
+      }
+      pos.needsUpdate = true;
+    }
+  });
 
-            {/* ============================================================= */}
-            {/* 05 // PORT CROPPED-DELTA WING & FLAPERON                      */}
-            {/* ============================================================= */}
-            <ExplodablePartGroup
-                part={getPart('port_wing')}
-                explodeFactor={explodeFactor}
-                isSelected={selectedPart === 'port_wing'}
-                isHovered={hoveredPart === 'port_wing'}
-                onSelect={onSelectPart}
-                onHover={onHoverPart}
-                showLabels={showLabels}
-            >
-                <group scale={[1, 1, -1]}>
-                    <mesh geometry={wingGeo} castShadow receiveShadow>
-                        <meshStandardMaterial {...matProps('port_wing', '#CBD5E1', 0.52, 0.32)} />
-                    </mesh>
-                    {/* Articulated Tapered Flaperon */}
-                    <group
-                        position={[-0.95, 0, 0.28]}
-                        rotation={[0, 0, flapRad + aileronRad]}
-                    >
-                        <mesh geometry={flaperonGeo}>
-                            <meshStandardMaterial {...matProps('port_wing', '#94A3B8', 0.58, 0.28)} />
-                        </mesh>
-                    </group>
-                    {/* Under-wing Flap Actuator Fairing Pods */}
-                    {[0.65, 1.35].map((zOff, i) => (
-                        <mesh key={i} position={[-0.72, -0.05, zOff]} rotation={[0, 0, Math.PI / 2]}>
-                            <coneGeometry args={[0.032, 0.42, 16]} />
-                            <meshStandardMaterial {...matProps('port_wing', '#94A3B8', 0.55, 0.32)} />
-                        </mesh>
-                    ))}
-                </group>
-            </ExplodablePartGroup>
+  // Deterministic flight streamlines
+  const streamPositions = useMemo(() => {
+    const count = 180;
+    const arr = new Float32Array(count * 3);
+    for (let i = 0; i < count; i++) {
+      const s1 = ((i * 73 + 11) % 101) / 101;
+      const s2 = ((i * 139 + 29) % 97) / 97;
+      const s3 = ((i * 197 + 47) % 89) / 89;
+      arr[i * 3] = (s1 - 0.5) * 10.8;
+      arr[i * 3 + 1] = (s2 - 0.45) * 2.2;
+      arr[i * 3 + 2] = (s3 - 0.5) * 6.0;
+    }
+    return arr;
+  }, []);
 
-            {/* ============================================================= */}
-            {/* 06 // STARBOARD CROPPED-DELTA WING & FLAPERON                 */}
-            {/* ============================================================= */}
-            <ExplodablePartGroup
-                part={getPart('starboard_wing')}
-                explodeFactor={explodeFactor}
-                isSelected={selectedPart === 'starboard_wing'}
-                isHovered={hoveredPart === 'starboard_wing'}
-                onSelect={onSelectPart}
-                onHover={onHoverPart}
-                showLabels={showLabels}
-            >
-                <mesh geometry={wingGeo} castShadow receiveShadow>
-                    <meshStandardMaterial {...matProps('starboard_wing', '#CBD5E1', 0.52, 0.32)} />
-                </mesh>
-                {/* Articulated Tapered Flaperon */}
-                <group
-                    position={[-0.95, 0, 0.28]}
-                    rotation={[0, 0, flapRad - aileronRad]}
-                >
-                    <mesh geometry={flaperonGeo}>
-                        <meshStandardMaterial {...matProps('starboard_wing', '#94A3B8', 0.58, 0.28)} />
-                    </mesh>
-                </group>
-                {/* Under-wing Flap Actuator Fairing Pods */}
-                {[0.65, 1.35].map((zOff, i) => (
-                    <mesh key={i} position={[-0.72, -0.05, zOff]} rotation={[0, 0, Math.PI / 2]}>
-                        <coneGeometry args={[0.032, 0.42, 16]} />
-                        <meshStandardMaterial {...matProps('starboard_wing', '#94A3B8', 0.55, 0.32)} />
-                    </mesh>
-                ))}
-            </ExplodablePartGroup>
+  const matProps = (
+    partId,
+    baseColor = '#CBD5E1',
+    metalness = 0.42,
+    roughness = 0.36
+  ) => {
+    const isSel = selectedPart === partId;
+    const isHov = hoveredPart === partId;
+    if (wireframe) {
+      return {
+        color: isSel ? '#F4B740' : isHov ? '#5AA6FF' : '#2E8BFF',
+        emissive: isSel ? '#D97706' : '#1463E0',
+        emissiveIntensity: isSel ? 0.65 : 0.32,
+        wireframe: true,
+      };
+    }
+    return {
+      color: isSel ? '#FDE68A' : isHov ? '#93C5FD' : baseColor,
+      emissive: isSel ? '#D97706' : isHov ? '#1F5BD8' : '#000000',
+      emissiveIntensity: isSel ? 0.28 : isHov ? 0.18 : 0,
+      metalness,
+      roughness,
+    };
+  };
 
-            {/* ============================================================= */}
-            {/* 07 // VERTICAL STABILIZER, ECM POD & RUDDER                   */}
-            {/* ============================================================= */}
-            <ExplodablePartGroup
-                part={getPart('vertical_tail')}
-                explodeFactor={explodeFactor}
-                isSelected={selectedPart === 'vertical_tail'}
-                isHovered={hoveredPart === 'vertical_tail'}
-                onSelect={onSelectPart}
-                onHover={onHoverPart}
-                showLabels={showLabels}
-            >
-                {/* Lofted Supersonic Biconvex Vertical Fin */}
-                <mesh geometry={vTailGeo} position={[0.1, -0.48, 0]} castShadow receiveShadow>
-                    <meshStandardMaterial {...matProps('vertical_tail', '#CBD5E1', 0.5, 0.34)} />
-                </mesh>
-                {/* Dorsal Fin Root Base Fairing & ECM / Drag-Chute Housing */}
-                <mesh position={[-0.08, -0.42, 0]} rotation={[0, 0, Math.PI / 2]}>
-                    <cylinderGeometry args={[0.11, 0.13, 1.85, 24]} />
-                    <meshStandardMaterial {...matProps('vertical_tail', '#94A3B8', 0.52, 0.35)} />
-                </mesh>
-                {/* Leading-Edge RWR Threat-Warning Blister Pod */}
-                <mesh position={[-0.25, 0.32, 0]} rotation={[0, 0, -Math.PI / 2]}>
-                    <capsuleGeometry args={[0.038, 0.24, 12, 20]} />
-                    <meshStandardMaterial color="#334155" metalness={0.6} roughness={0.3} />
-                </mesh>
-                {/* Fin-Tip Fairing & Anti-Collision Strobe */}
-                <mesh position={[-0.72, 0.94, 0]} rotation={[0, 0, Math.PI / 2]}>
-                    <capsuleGeometry args={[0.036, 0.58, 12, 20]} />
-                    <meshStandardMaterial color="#475569" metalness={0.55} roughness={0.35} />
-                </mesh>
-                {/* Articulated Rudder Control Surface */}
-                <mesh position={[-0.84, 0.18, 0]} rotation={[0, rudderRad, 0.18]}>
-                    <boxGeometry args={[0.24, 1.12, 0.032]} />
-                    <meshStandardMaterial {...matProps('vertical_tail', '#94A3B8', 0.55, 0.32)} />
-                </mesh>
-            </ExplodablePartGroup>
+  const getPart = (id) => F16_PARTS.find((p) => p.id === id);
 
-            {/* ============================================================= */}
-            {/* 08 // PORT ALL-MOVING HORIZONTAL STABILATOR                   */}
-            {/* ============================================================= */}
-            <ExplodablePartGroup
-                part={getPart('port_stabilator')}
-                explodeFactor={explodeFactor}
-                isSelected={selectedPart === 'port_stabilator'}
-                isHovered={hoveredPart === 'port_stabilator'}
-                onSelect={onSelectPart}
-                onHover={onHoverPart}
-                showLabels={showLabels}
-            >
-                <group scale={[1, 1, -1]} rotation={[0, 0, elevRad]}>
-                    <mesh geometry={stabilatorGeo} castShadow receiveShadow>
-                        <meshStandardMaterial {...matProps('port_stabilator', '#B8C4D4', 0.54, 0.32)} />
-                    </mesh>
-                </group>
-            </ExplodablePartGroup>
+  const flapRad = ((rigState.flapDeg ?? 0) * Math.PI) / 180;
+  const elevRad = ((rigState.elevatorDeg ?? 0) * Math.PI) / 180;
+  const rudderRad = ((rigState.rudderDeg ?? 0) * Math.PI) / 180;
 
-            {/* ============================================================= */}
-            {/* 09 // STARBOARD ALL-MOVING HORIZONTAL STABILATOR              */}
-            {/* ============================================================= */}
-            <ExplodablePartGroup
-                part={getPart('starboard_stabilator')}
-                explodeFactor={explodeFactor}
-                isSelected={selectedPart === 'starboard_stabilator'}
-                isHovered={hoveredPart === 'starboard_stabilator'}
-                onSelect={onSelectPart}
-                onHover={onHoverPart}
-                showLabels={showLabels}
-            >
-                <group rotation={[0, 0, elevRad]}>
-                    <mesh geometry={stabilatorGeo} castShadow receiveShadow>
-                        <meshStandardMaterial {...matProps('starboard_stabilator', '#B8C4D4', 0.54, 0.32)} />
-                    </mesh>
-                </group>
-            </ExplodablePartGroup>
-
-            {/* ============================================================= */}
-            {/* 10 // GE F110-GE-129 TURBOFAN & 16-PETAL C-D IRIS NOZZLE      */}
-            {/* ============================================================= */}
-            <ExplodablePartGroup
-                part={getPart('nozzle')}
-                explodeFactor={explodeFactor}
-                isSelected={selectedPart === 'nozzle'}
-                isHovered={hoveredPart === 'nozzle'}
-                onSelect={onSelectPart}
-                onHover={onHoverPart}
-                showLabels={showLabels}
-            >
-                {/* Internal F110 Augmented Turbofan Core Drum & Gearbox Rings (visible when exploded) */}
-                <group position={[0.88, 0.02, 0]}>
-                    <mesh rotation={[0, 0, Math.PI / 2]}>
-                        <cylinderGeometry args={[0.29, 0.32, 1.55, 36]} />
-                        <meshStandardMaterial color="#475569" metalness={0.85} roughness={0.22} />
-                    </mesh>
-                    {[-0.45, 0.0, 0.45].map((xRing, idx) => (
-                        <mesh key={idx} position={[xRing, 0, 0]} rotation={[0, Math.PI / 2, 0]}>
-                            <torusGeometry args={[0.315, 0.016, 12, 36]} />
-                            <meshStandardMaterial color="#94A3B8" metalness={0.9} roughness={0.18} />
-                        </mesh>
-                    ))}
-                </group>
-
-                {/* Nozzle Carbon-Composite Shroud Collar */}
-                <mesh position={[0.16, 0.02, 0]} rotation={[0, 0, Math.PI / 2]}>
-                    <cylinderGeometry args={[0.35, 0.37, 0.32, 36]} />
-                    <meshStandardMaterial {...matProps('nozzle', '#1E293B', 0.78, 0.26)} />
-                </mesh>
-
-                {/* 16 Sculpted Overlapping Turkey-Feather Divergent Nozzle Petals */}
-                <group position={[-0.18, 0.02, 0]}>
-                    {Array.from({ length: 16 }).map((_, idx) => {
-                        const angle = (idx / 16) * Math.PI * 2;
-                        const radius = 0.315;
-                        const petalTilt = flightMode ? 0.04 : -0.14;
-                        return (
-                            <group key={idx} rotation={[angle, 0, 0]}>
-                                <mesh
-                                    position={[0, radius, 0]}
-                                    rotation={[0, 0, petalTilt]}
-                                >
-                                    <boxGeometry args={[0.52, 0.024, 0.13]} />
-                                    <meshStandardMaterial
-                                        {...matProps(
-                                            'nozzle',
-                                            idx % 2 === 0 ? '#334155' : '#475569',
-                                            0.86,
-                                            0.22
-                                        )}
-                                    />
-                                </mesh>
-                            </group>
-                        );
-                    })}
-                </group>
-
-                {/* Internal Radial Afterburner Flameholder Rings & Glow */}
-                <group position={[-0.24, 0.02, 0]}>
-                    <mesh rotation={[0, 0, Math.PI / 2]}>
-                        <cylinderGeometry args={[0.25, 0.28, 0.12, 32]} />
-                        <meshBasicMaterial color={flightMode ? '#38BDF8' : '#EA580C'} />
-                    </mesh>
-                    <mesh rotation={[0, Math.PI / 2, 0]} position={[-0.05, 0, 0]}>
-                        <torusGeometry args={[0.18, 0.015, 12, 32]} />
-                        <meshBasicMaterial color="#FDE047" />
-                    </mesh>
-                </group>
-
-                {/* Volumetric Afterburner Shock-Diamond Plume (Active in Launch Flight mode) */}
-                {flightMode && (
-                    <group ref={afterburnerRef} position={[-1.42, 0.02, 0]} rotation={[0, 0, Math.PI / 2]}>
-                        <mesh>
-                            <coneGeometry args={[0.29, 2.4, 32, 1, true]} />
-                            <meshBasicMaterial
-                                color="#2E8BFF"
-                                transparent
-                                opacity={0.62}
-                                side={THREE.DoubleSide}
-                            />
-                        </mesh>
-                        <mesh position={[0, 0.35, 0]}>
-                            <coneGeometry args={[0.18, 1.5, 24]} />
-                            <meshBasicMaterial color="#FDE047" transparent opacity={0.88} />
-                        </mesh>
-                        {/* Supersonic Mach Shock Diamonds */}
-                        {[-0.35, 0.0, 0.35, 0.68].map((yOff, idx) => (
-                            <mesh key={idx} position={[0, yOff, 0]} scale={[1, 0.42, 1]}>
-                                <octahedronGeometry args={[0.15 - idx * 0.022, 1]} />
-                                <meshBasicMaterial color="#FFFFFF" transparent opacity={0.85} />
-                            </mesh>
-                        ))}
-                    </group>
-                )}
-            </ExplodablePartGroup>
-
-            {/* ============================================================= */}
-            {/* 11 // TRICYCLE HYDRO-PNEUMATIC UNDERCARRIAGE (Retracts in Flight) */}
-            {/* ============================================================= */}
-            {!flightMode && (
-                <ExplodablePartGroup
-                    part={getPart('undercarriage')}
-                    explodeFactor={explodeFactor}
-                    isSelected={selectedPart === 'undercarriage'}
-                    isHovered={hoveredPart === 'undercarriage'}
-                    onSelect={onSelectPart}
-                    onHover={onHoverPart}
-                    showLabels={showLabels}
-                >
-                    {/* Steerable Nose Landing Gear (Aft of Ventral Intake Lip) */}
-                    <group position={[0.92, 0.12, 0]}>
-                        {/* Oleo Shock Strut */}
-                        <mesh position={[0, 0.05, 0]} rotation={[0, 0, -0.12]}>
-                            <cylinderGeometry args={[0.028, 0.032, 0.56, 16]} />
-                            <meshStandardMaterial color="#F8FAFC" metalness={0.85} roughness={0.18} />
-                        </mesh>
-                        {/* Drag brace & Landing Light */}
-                        <mesh position={[-0.12, 0.16, 0]} rotation={[0, 0, 0.65]}>
-                            <cylinderGeometry args={[0.014, 0.014, 0.38, 12]} />
-                            <meshStandardMaterial color="#E2E8F0" metalness={0.8} roughness={0.2} />
-                        </mesh>
-                        {/* Nose Gear Bay Door */}
-                        <mesh position={[0.02, 0.22, 0.16]}>
-                            <boxGeometry args={[0.52, 0.18, 0.018]} />
-                            <meshStandardMaterial {...matProps('undercarriage', '#CBD5E1', 0.5, 0.35)} />
-                        </mesh>
-                        {/* Nose Tire & White Wheel Hub */}
-                        <group position={[0.04, -0.22, 0.04]} rotation={[Math.PI / 2, 0, 0]}>
-                            <mesh>
-                                <torusGeometry args={[0.1, 0.042, 16, 32]} />
-                                <meshStandardMaterial color="#0F172A" roughness={0.88} />
-                            </mesh>
-                            <mesh>
-                                <cylinderGeometry args={[0.068, 0.068, 0.065, 20]} />
-                                <meshStandardMaterial color="#F8FAFC" metalness={0.6} roughness={0.3} />
-                            </mesh>
-                        </group>
-                    </group>
-
-                    {/* Wide-Track Fuselage-Mounted A-Frame Main Landing Gear */}
-                    {[-1, 1].map((side) => (
-                        <group key={side} position={[-0.58, 0.14, side * 0.68]}>
-                            {/* Main Oleo Strut */}
-                            <mesh rotation={[side * -0.38, 0, 0]}>
-                                <cylinderGeometry args={[0.036, 0.04, 0.68, 16]} />
-                                <meshStandardMaterial color="#F8FAFC" metalness={0.85} roughness={0.18} />
-                            </mesh>
-                            {/* Side Retraction Brace */}
-                            <mesh position={[0, 0.08, side * -0.18]} rotation={[side * 0.52, 0, 0]}>
-                                <cylinderGeometry args={[0.02, 0.02, 0.52, 12]} />
-                                <meshStandardMaterial color="#E2E8F0" metalness={0.8} roughness={0.22} />
-                            </mesh>
-                            {/* Bulged Main Gear Bay Door */}
-                            <mesh position={[0, 0.2, side * 0.14]} rotation={[side * -0.25, 0, 0]}>
-                                <boxGeometry args={[0.72, 0.24, 0.022]} />
-                                <meshStandardMaterial {...matProps('undercarriage', '#CBD5E1', 0.5, 0.35)} />
-                            </mesh>
-                            {/* Main Tire & Carbon Brake Hub */}
-                            <group position={[0, -0.28, side * 0.14]} rotation={[Math.PI / 2, 0, 0]}>
-                                <mesh>
-                                    <torusGeometry args={[0.145, 0.06, 20, 36]} />
-                                    <meshStandardMaterial color="#0F172A" roughness={0.88} />
-                                </mesh>
-                                <mesh>
-                                    <cylinderGeometry args={[0.1, 0.1, 0.095, 24]} />
-                                    <meshStandardMaterial color="#F8FAFC" metalness={0.65} roughness={0.28} />
-                                </mesh>
-                            </group>
-                        </group>
-                    ))}
-                </ExplodablePartGroup>
-            )}
-
-            {/* ============================================================= */}
-            {/* 12 // WINGTIP AIM-9X RAILS, AMRAAMS & FINNED 370-GAL TANKS    */}
-            {/* ============================================================= */}
-            <ExplodablePartGroup
-                part={getPart('stores')}
-                explodeFactor={explodeFactor}
-                isSelected={selectedPart === 'stores'}
-                isHovered={hoveredPart === 'stores'}
-                onSelect={onSelectPart}
-                onHover={onHoverPart}
-                showLabels={showLabels}
-            >
-                {[-1, 1].map((side) => (
-                    <group key={side}>
-                        {/* Wingtip LAU-129 Launcher Rail + AIM-9X Sidewinder Missile */}
-                        <group position={[-0.65, 0.24, side * 2.7]}>
-                            {/* LAU-129 Rail Beam */}
-                            <mesh position={[-0.08, 0, side * -0.04]}>
-                                <boxGeometry args={[1.38, 0.045, 0.04]} />
-                                <meshStandardMaterial {...matProps('stores', '#94A3B8', 0.55, 0.32)} />
-                            </mesh>
-                            {/* AIM-9X Missile Body */}
-                            <mesh rotation={[0, 0, Math.PI / 2]}>
-                                <cylinderGeometry args={[0.032, 0.032, 1.48, 20]} />
-                                <meshStandardMaterial {...matProps('stores', '#E2E8F0', 0.55, 0.28)} />
-                            </mesh>
-                            {/* IR Seeker Glass Dome */}
-                            <mesh position={[0.78, 0, 0]} rotation={[0, 0, -Math.PI / 2]}>
-                                <coneGeometry args={[0.032, 0.14, 20]} />
-                                <meshStandardMaterial color="#1E293B" metalness={0.85} roughness={0.12} />
-                            </mesh>
-                            {/* 4 Forward Canard Control Fins + 4 Aft Tailfins */}
-                            {[0, Math.PI / 2].map((rotAngle, fIdx) => (
-                                <React.Fragment key={fIdx}>
-                                    <mesh position={[0.48, 0, 0]} rotation={[rotAngle, 0, 0]}>
-                                        <boxGeometry args={[0.12, 0.16, 0.008]} />
-                                        <meshStandardMaterial color="#334155" metalness={0.75} roughness={0.25} />
-                                    </mesh>
-                                    <mesh position={[-0.62, 0, 0]} rotation={[rotAngle, 0, 0]}>
-                                        <boxGeometry args={[0.2, 0.22, 0.008]} />
-                                        <meshStandardMaterial color="#334155" metalness={0.75} roughness={0.25} />
-                                    </mesh>
-                                </React.Fragment>
-                            ))}
-                        </group>
-
-                        {/* Under-Wing 370-Gallon Finned External Fuel Drop Tank */}
-                        <group position={[-0.32, -0.02, side * 1.25]}>
-                            {/* Swept Wing Pylon */}
-                            <mesh position={[0, 0.15, 0]}>
-                                <boxGeometry args={[0.72, 0.16, 0.045]} />
-                                <meshStandardMaterial {...matProps('stores', '#94A3B8', 0.52, 0.34)} />
-                            </mesh>
-                            {/* Cylindrical Tank Center Section */}
-                            <mesh rotation={[0, 0, Math.PI / 2]}>
-                                <cylinderGeometry args={[0.145, 0.145, 1.45, 32]} />
-                                <meshStandardMaterial {...matProps('stores', '#CBD5E1', 0.48, 0.34)} />
-                            </mesh>
-                            {/* Ogive Forward Tank Nose */}
-                            <mesh position={[0.98, 0, 0]} rotation={[0, 0, -Math.PI / 2]}>
-                                <coneGeometry args={[0.145, 0.52, 32]} />
-                                <meshStandardMaterial {...matProps('stores', '#CBD5E1', 0.48, 0.34)} />
-                            </mesh>
-                            {/* Tapered Aft Tank Tailcone + Cruciform Stabilizer Fins */}
-                            <mesh position={[-0.98, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
-                                <coneGeometry args={[0.145, 0.52, 32]} />
-                                <meshStandardMaterial {...matProps('stores', '#CBD5E1', 0.48, 0.34)} />
-                            </mesh>
-                            {[0.6, -0.6].map((fRot, fIdx) => (
-                                <mesh key={fIdx} position={[-0.92, 0, 0]} rotation={[fRot, 0, 0]}>
-                                    <boxGeometry args={[0.28, 0.38, 0.014]} />
-                                    <meshStandardMaterial {...matProps('stores', '#94A3B8', 0.52, 0.34)} />
-                                </mesh>
-                            ))}
-                        </group>
-                    </group>
-                ))}
-            </ExplodablePartGroup>
-
-            {/* High-Speed Flight Streamlines */}
-            {flightMode && (
-                <points ref={streamlinesRef}>
-                    <bufferGeometry>
-                        <bufferAttribute
-                            attach="attributes-position"
-                            count={streamPositions.length / 3}
-                            array={streamPositions}
-                            itemSize={3}
-                        />
-                    </bufferGeometry>
-                    <pointsMaterial color="#2BC8FF" size={0.045} transparent opacity={0.78} />
-                </points>
-            )}
+  return (
+    <group ref={aircraftRootRef}>
+      {/* ================================================================= */}
+      {/* 01 // RADOME & AN/APG-68(V)9 FIRE-CONTROL RADAR                   */}
+      {/* ================================================================= */}
+      <ExplodablePartGroup
+        part={getPart('radome')}
+        explodeFactor={explodeFactor}
+        isSelected={selectedPart === 'radome'}
+        isHovered={hoveredPart === 'radome'}
+        onSelect={onSelectPart}
+        onHover={onHoverPart}
+        showLabels={showLabels}
+      >
+        {/* Drooped Sears-Haack Elliptical Radome (Flush with x=2.65 bulkhead) */}
+        <mesh geometry={geometries.radomeGeo}>
+          <meshStandardMaterial {...matProps('radome', '#526071', 0.32, 0.44)} />
+        </mesh>
+        {/* Radome-Fuselage Metallic Bulkhead Seal Ring */}
+        <mesh position={[0.01, 0, 0]} rotation={[0, Math.PI / 2, 0]} scale={[1.15, 0.98, 1]}>
+          <torusGeometry args={[0.31, 0.012, 16, 48]} />
+          <meshStandardMaterial color="#E2E8F0" metalness={0.85} roughness={0.22} />
+        </mesh>
+        {/* Internal AN/APG-68 Slotted Planar Phased-Array Radar Dish & Gimbal */}
+        <group position={[-0.04, 0, 0]}>
+          <mesh rotation={[0, 0, Math.PI / 2]}>
+            <cylinderGeometry args={[0.27, 0.27, 0.05, 36]} />
+            <meshStandardMaterial color="#F4B740" metalness={0.88} roughness={0.18} />
+          </mesh>
+          <mesh position={[-0.1, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+            <cylinderGeometry args={[0.13, 0.2, 0.18, 24]} />
+            <meshStandardMaterial color="#334155" metalness={0.75} roughness={0.3} />
+          </mesh>
         </group>
-    );
+        {/* Supersonic Nose Pitot-Static Boom */}
+        <mesh position={[2.08, -0.045, 0]} rotation={[0, 0, -Math.PI / 2]}>
+          <cylinderGeometry args={[0.005, 0.018, 0.52, 16]} />
+          <meshStandardMaterial color="#F1F5F9" metalness={0.92} roughness={0.15} />
+        </mesh>
+      </ExplodablePartGroup>
+
+      {/* ================================================================= */}
+      {/* 02 // COCKPIT TUB, ACES II EJECTION SEAT & GOLD BUBBLE CANOPY     */}
+      {/* ================================================================= */}
+      <ExplodablePartGroup
+        part={getPart('cockpit')}
+        explodeFactor={explodeFactor}
+        isSelected={selectedPart === 'cockpit'}
+        isHovered={hoveredPart === 'cockpit'}
+        onSelect={onSelectPart}
+        onHover={onHoverPart}
+        showLabels={showLabels}
+      >
+        {/* Contoured Cockpit Coaming Sill (tucked inside fuselage crown) */}
+        <mesh position={[-0.08, -0.03, 0]} rotation={[Math.PI / 2, 0, 0]} scale={[2.9, 0.85, 1]}>
+          <torusGeometry args={[0.31, 0.032, 14, 48]} />
+          <meshStandardMaterial color="#1E293B" metalness={0.55} roughness={0.45} />
+        </mesh>
+        {/* 30-Degree Reclined ACES II Ejection Seat */}
+        <group position={[-0.05, 0.02, 0]} rotation={[0, 0, 0.52]}>
+          <mesh position={[0, 0.13, 0]}>
+            <boxGeometry args={[0.09, 0.44, 0.28]} />
+            <meshStandardMaterial color="#1E293B" metalness={0.4} roughness={0.55} />
+          </mesh>
+          <mesh position={[0.12, -0.06, 0]}>
+            <boxGeometry args={[0.24, 0.07, 0.28]} />
+            <meshStandardMaterial color="#334155" />
+          </mesh>
+          <mesh position={[-0.03, 0.34, 0]}>
+            <boxGeometry args={[0.1, 0.14, 0.2]} />
+            <meshStandardMaterial color="#475569" metalness={0.7} roughness={0.3} />
+          </mesh>
+        </group>
+        {/* Wide-Angle Holographic HUD Combiner Glass */}
+        <mesh position={[0.52, 0.14, 0]} rotation={[0, 0, -0.42]}>
+          <boxGeometry args={[0.016, 0.19, 0.18]} />
+          <meshStandardMaterial
+            color="#34D399"
+            emissive="#10B981"
+            emissiveIntensity={0.85}
+            transparent
+            opacity={0.72}
+          />
+        </mesh>
+        {/* Sculpted Teardrop Bubble Canopy (Gold-Indium-Tin Coating) */}
+        <mesh geometry={geometries.canopyGeo}>
+          <meshPhysicalMaterial
+            color={selectedPart === 'cockpit' ? '#FDE68A' : '#38BDF8'}
+            emissive={selectedPart === 'cockpit' ? '#B45309' : '#0369A1'}
+            emissiveIntensity={0.14}
+            metalness={0.22}
+            roughness={0.06}
+            clearcoat={1.0}
+            clearcoatRoughness={0.05}
+            transmission={0.64}
+            transparent
+            opacity={0.56}
+            wireframe={wireframe}
+          />
+        </mesh>
+        {/* Aft Canopy Structural Bow Arch */}
+        <mesh position={[-0.42, -0.01, 0]} rotation={[0, Math.PI / 2, 0]}>
+          <torusGeometry args={[0.29, 0.018, 16, 36, Math.PI]} />
+          <meshStandardMaterial color="#334155" metalness={0.82} roughness={0.26} />
+        </mesh>
+      </ExplodablePartGroup>
+
+      {/* ================================================================= */}
+      {/* 03 // CENTRAL BLENDED WING-BODY AIRFRAME, LERX & DORSAL SPINE     */}
+      {/* ================================================================= */}
+      <ExplodablePartGroup
+        part={getPart('airframe')}
+        explodeFactor={explodeFactor}
+        isSelected={selectedPart === 'airframe'}
+        isHovered={hoveredPart === 'airframe'}
+        onSelect={onSelectPart}
+        onHover={onHoverPart}
+        showLabels={showLabels}
+      >
+        {/* Continuous Lofted Blended Wing-Body + Chine Strakes + Dorsal Spine */}
+        <mesh geometry={geometries.fuselageGeo}>
+          <meshStandardMaterial {...matProps('airframe', '#CBD5E1', 0.44, 0.34)} />
+        </mesh>
+        {/* M61A1 Vulcan 20mm Rotary Cannon Muzzle Port (Port LERX Root) */}
+        <mesh position={[1.15, 0.14, -0.44]} rotation={[0, 0, Math.PI / 2]}>
+          <cylinderGeometry args={[0.036, 0.036, 0.28, 16]} />
+          <meshStandardMaterial color="#1E293B" metalness={0.85} roughness={0.25} />
+        </mesh>
+        {/* Dual Aft Ventral Stability Fins (Canted Outward 15°) */}
+        {[-1, 1].map((side) => (
+          <mesh
+            key={side}
+            position={[-1.85, -0.34, side * 0.26]}
+            rotation={[side * 0.26, 0, 0.15]}
+          >
+            <boxGeometry args={[0.92, 0.28, 0.022]} />
+            <meshStandardMaterial {...matProps('airframe', '#94A3B8', 0.48, 0.34)} />
+          </mesh>
+        ))}
+      </ExplodablePartGroup>
+
+      {/* ================================================================= */}
+      {/* 04 // VENTRAL NORMAL-SHOCK SUPERSONIC INLET & FAN FACE            */}
+      {/* ================================================================= */}
+      <ExplodablePartGroup
+        part={getPart('intake')}
+        explodeFactor={explodeFactor}
+        isSelected={selectedPart === 'intake'}
+        isHovered={hoveredPart === 'intake'}
+        onSelect={onSelectPart}
+        onHover={onHoverPart}
+        showLabels={showLabels}
+      >
+        {/* Sculpted D-Duct Ventral Supersonic Intake Fairing */}
+        <mesh geometry={geometries.intakeGeo}>
+          <meshStandardMaterial
+            {...matProps('intake', '#CBD5E1', 0.44, 0.34)}
+            side={THREE.DoubleSide}
+          />
+        </mesh>
+        {/* Boundary-Layer Diverter Strut */}
+        <mesh position={[0.45, 0.16, 0]}>
+          <boxGeometry args={[0.85, 0.06, 0.36]} />
+          <meshStandardMaterial color="#475569" metalness={0.7} roughness={0.32} />
+        </mesh>
+        {/* Deep Dark Intake Throat Cavity & Spinning Fan Face */}
+        <mesh
+          position={[0.82, -0.02, 0]}
+          rotation={[0, 0, Math.PI / 2]}
+          scale={[0.58, 1, 1.05]}
+        >
+          <cylinderGeometry args={[0.31, 0.31, 0.12, 32]} />
+          <meshBasicMaterial color="#050B16" />
+        </mesh>
+        <group ref={intakeFanRef} position={[0.52, -0.02, 0]}>
+          <mesh rotation={[0, 0, Math.PI / 2]}>
+            <cylinderGeometry args={[0.25, 0.25, 0.06, 18]} />
+            <meshStandardMaterial
+              color="#64748B"
+              metalness={0.9}
+              roughness={0.2}
+              wireframe
+            />
+          </mesh>
+        </group>
+      </ExplodablePartGroup>
+
+      {/* ================================================================= */}
+      {/* 05 // PORT CROPPED-DELTA WING, LE FLAP & FLAPERON                 */}
+      {/* ================================================================= */}
+      <ExplodablePartGroup
+        part={getPart('port_wing')}
+        explodeFactor={explodeFactor}
+        isSelected={selectedPart === 'port_wing'}
+        isHovered={hoveredPart === 'port_wing'}
+        onSelect={onSelectPart}
+        onHover={onHoverPart}
+        showLabels={showLabels}
+      >
+        {/* 3D Tapered NACA 64A204 Port Wing */}
+        <mesh geometry={geometries.wingGeo} scale={[1, 1, -1]}>
+          <meshStandardMaterial
+            {...matProps('port_wing', '#CBD5E1', 0.44, 0.34)}
+            side={THREE.DoubleSide}
+          />
+        </mesh>
+        {/* Articulated Port Flaperon */}
+        <group
+          position={[-1.02, 0.0, -0.95]}
+          rotation={[0, 0, flapRad - ((rigState.aileronDeg ?? 0) * Math.PI) / 180]}
+        >
+          <mesh>
+            <boxGeometry args={[0.26, 0.026, 1.25]} />
+            <meshStandardMaterial {...matProps('port_wing', '#94A3B8', 0.52, 0.32)} />
+          </mesh>
+        </group>
+        {/* Red Port Wingtip Navigation Strobe */}
+        <mesh position={[-0.68, 0.0, -2.18]}>
+          <sphereGeometry args={[0.032, 12, 12]} />
+          <meshBasicMaterial color="#EF4444" />
+        </mesh>
+      </ExplodablePartGroup>
+
+      {/* ================================================================= */}
+      {/* 06 // STARBOARD CROPPED-DELTA WING, LE FLAP & FLAPERON            */}
+      {/* ================================================================= */}
+      <ExplodablePartGroup
+        part={getPart('starboard_wing')}
+        explodeFactor={explodeFactor}
+        isSelected={selectedPart === 'starboard_wing'}
+        isHovered={hoveredPart === 'starboard_wing'}
+        onSelect={onSelectPart}
+        onHover={onHoverPart}
+        showLabels={showLabels}
+      >
+        {/* 3D Tapered NACA 64A204 Starboard Wing */}
+        <mesh geometry={geometries.wingGeo}>
+          <meshStandardMaterial
+            {...matProps('starboard_wing', '#CBD5E1', 0.44, 0.34)}
+            side={THREE.DoubleSide}
+          />
+        </mesh>
+        {/* Articulated Starboard Flaperon */}
+        <group
+          position={[-1.02, 0.0, 0.95]}
+          rotation={[0, 0, flapRad + ((rigState.aileronDeg ?? 0) * Math.PI) / 180]}
+        >
+          <mesh>
+            <boxGeometry args={[0.26, 0.026, 1.25]} />
+            <meshStandardMaterial
+              {...matProps('starboard_wing', '#94A3B8', 0.52, 0.32)}
+            />
+          </mesh>
+        </group>
+        {/* Green Starboard Wingtip Navigation Strobe */}
+        <mesh position={[-0.68, 0.0, 2.18]}>
+          <sphereGeometry args={[0.032, 12, 12]} />
+          <meshBasicMaterial color="#10B981" />
+        </mesh>
+      </ExplodablePartGroup>
+
+      {/* ================================================================= */}
+      {/* 07 // VERTICAL STABILIZER, ECM FAIRING & RUDDER                   */}
+      {/* ================================================================= */}
+      <ExplodablePartGroup
+        part={getPart('vertical_tail')}
+        explodeFactor={explodeFactor}
+        isSelected={selectedPart === 'vertical_tail'}
+        isHovered={hoveredPart === 'vertical_tail'}
+        onSelect={onSelectPart}
+        onHover={onHoverPart}
+        showLabels={showLabels}
+      >
+        {/* 3D Tapered Supersonic Vertical Fin with USAF Tail Markings */}
+        <mesh geometry={geometries.vTailGeo}>
+          <meshStandardMaterial
+            {...matProps('vertical_tail', '#CBD5E1', 0.42, 0.36)}
+            map={wireframe ? null : tailTexture}
+          />
+        </mesh>
+        {/* Dorsal Drag-Chute / ECM Pod Housing at Fin Root */}
+        <mesh position={[-0.08, 0.04, 0]} rotation={[0, 0, Math.PI / 2]}>
+          <capsuleGeometry args={[0.095, 1.55, 12, 24]} />
+          <meshStandardMaterial
+            {...matProps('vertical_tail', '#94A3B8', 0.5, 0.34)}
+          />
+        </mesh>
+        {/* Leading-Edge Radar Warning Receiver (RWR) Blister */}
+        <mesh position={[0.16, 0.98, 0]} rotation={[0, 0, -Math.PI / 2]}>
+          <capsuleGeometry args={[0.04, 0.22, 12, 16]} />
+          <meshStandardMaterial color="#334155" metalness={0.7} roughness={0.28} />
+        </mesh>
+        {/* Fin-Tip Anti-Collision Strobe */}
+        <mesh position={[-0.68, 1.54, 0]}>
+          <sphereGeometry args={[0.028, 12, 12]} />
+          <meshBasicMaterial color="#F4B740" />
+        </mesh>
+        {/* Articulated Rudder */}
+        <group position={[-0.84, 0.72, 0]} rotation={[0, rudderRad, 0]}>
+          <mesh>
+            <boxGeometry args={[0.22, 1.18, 0.032]} />
+            <meshStandardMaterial
+              {...matProps('vertical_tail', '#64748B', 0.52, 0.34)}
+            />
+          </mesh>
+        </group>
+      </ExplodablePartGroup>
+
+      {/* ================================================================= */}
+      {/* 08 // PORT ALL-MOVING ANHEDRAL HORIZONTAL STABILATOR              */}
+      {/* ================================================================= */}
+      <ExplodablePartGroup
+        part={getPart('port_stabilator')}
+        explodeFactor={explodeFactor}
+        isSelected={selectedPart === 'port_stabilator'}
+        isHovered={hoveredPart === 'port_stabilator'}
+        onSelect={onSelectPart}
+        onHover={onHoverPart}
+        showLabels={showLabels}
+      >
+        <group rotation={[-0.17, 0, elevRad]}>
+          <mesh geometry={geometries.stabilatorGeo} scale={[1, 1, -1]}>
+            <meshStandardMaterial
+              {...matProps('port_stabilator', '#94A3B8', 0.46, 0.34)}
+              side={THREE.DoubleSide}
+            />
+          </mesh>
+        </group>
+      </ExplodablePartGroup>
+
+      {/* ================================================================= */}
+      {/* 09 // STARBOARD ALL-MOVING ANHEDRAL HORIZONTAL STABILATOR         */}
+      {/* ================================================================= */}
+      <ExplodablePartGroup
+        part={getPart('starboard_stabilator')}
+        explodeFactor={explodeFactor}
+        isSelected={selectedPart === 'starboard_stabilator'}
+        isHovered={hoveredPart === 'starboard_stabilator'}
+        onSelect={onSelectPart}
+        onHover={onHoverPart}
+        showLabels={showLabels}
+      >
+        <group rotation={[0.17, 0, elevRad]}>
+          <mesh geometry={geometries.stabilatorGeo}>
+            <meshStandardMaterial
+              {...matProps('starboard_stabilator', '#94A3B8', 0.46, 0.34)}
+              side={THREE.DoubleSide}
+            />
+          </mesh>
+        </group>
+      </ExplodablePartGroup>
+
+      {/* ================================================================= */}
+      {/* 10 // F110-GE-129 16-PETAL IRIS NOZZLE & AFTERBURNER PLUME        */}
+      {/* ================================================================= */}
+      <ExplodablePartGroup
+        part={getPart('nozzle')}
+        explodeFactor={explodeFactor}
+        isSelected={selectedPart === 'nozzle'}
+        isHovered={hoveredPart === 'nozzle'}
+        onSelect={onSelectPart}
+        onHover={onHoverPart}
+        showLabels={showLabels}
+      >
+        {/* Forward Titanium Engine Shroud (Flush with aft airframe at x=-2.82) */}
+        <mesh position={[0.18, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+          <cylinderGeometry args={[0.37, 0.39, 0.42, 36]} />
+          <meshStandardMaterial {...matProps('nozzle', '#475569', 0.82, 0.26)} />
+        </mesh>
+        {/* Conical Convergent-Divergent Carbon-Titanium Iris Nozzle */}
+        <mesh position={[-0.22, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+          <cylinderGeometry args={[0.29, 0.37, 0.46, 16, 1, true]} />
+          <meshStandardMaterial
+            {...matProps('nozzle', '#1E293B', 0.88, 0.24)}
+            side={THREE.DoubleSide}
+          />
+        </mesh>
+        {/* 16 Overlapping Turkey-Feather Actuator Ribs */}
+        {Array.from({ length: 16 }).map((_, idx) => {
+          const angle = (idx / 16) * Math.PI * 2;
+          return (
+            <group key={idx} rotation={[angle, 0, 0]}>
+              <mesh position={[-0.22, 0.33, 0]} rotation={[0, 0, 0.16]}>
+                <boxGeometry args={[0.46, 0.018, 0.09]} />
+                <meshStandardMaterial
+                  {...matProps('nozzle', '#334155', 0.86, 0.22)}
+                />
+              </mesh>
+            </group>
+          );
+        })}
+        {/* Deep Exhaust Core & Glowing Flameholder Ring */}
+        <mesh position={[-0.15, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+          <cylinderGeometry args={[0.27, 0.27, 0.3, 28]} />
+          <meshBasicMaterial color="#090D16" />
+        </mesh>
+        <mesh position={[-0.32, 0, 0]} rotation={[0, Math.PI / 2, 0]}>
+          <torusGeometry args={[0.21, 0.038, 16, 36]} />
+          <meshBasicMaterial color={flightMode ? '#F97316' : '#7C2D12'} />
+        </mesh>
+
+        {/* Volumetric Afterburner Plume & Mach Shock Diamonds (Flight Mode) */}
+        {flightMode && (
+          <group
+            ref={afterburnerRef}
+            position={[-1.65, 0, 0]}
+            rotation={[0, 0, Math.PI / 2]}
+          >
+            <mesh>
+              <coneGeometry args={[0.32, 2.75, 32, 1, true]} />
+              <meshBasicMaterial
+                color="#3B82F6"
+                transparent
+                opacity={0.42}
+                side={THREE.DoubleSide}
+              />
+            </mesh>
+            <mesh position={[0, 0.35, 0]}>
+              <coneGeometry args={[0.2, 1.95, 28]} />
+              <meshBasicMaterial color="#F59E0B" transparent opacity={0.85} />
+            </mesh>
+            {[-0.65, -0.32, 0.0, 0.32, 0.62, 0.9].map((dy, idx) => (
+              <mesh key={idx} position={[0, dy, 0]} scale={[1, 1.45, 1]}>
+                <octahedronGeometry args={[0.12 - idx * 0.014, 1]} />
+                <meshBasicMaterial color="#FEF08A" transparent opacity={0.92} />
+              </mesh>
+            ))}
+          </group>
+        )}
+      </ExplodablePartGroup>
+
+      {/* ================================================================= */}
+      {/* 11 // RETRACTABLE TRICYCLE OLEO-PNEUMATIC UNDERCARRIAGE           */}
+      {/* ================================================================= */}
+      {!flightMode && (
+        <ExplodablePartGroup
+          part={getPart('undercarriage')}
+          explodeFactor={explodeFactor}
+          isSelected={selectedPart === 'undercarriage'}
+          isHovered={hoveredPart === 'undercarriage'}
+          onSelect={onSelectPart}
+          onHover={onHoverPart}
+          showLabels={showLabels}
+        >
+          {/* Steerable Nose Gear Strut, Drag Brace & Wheel (aft of chin lip) */}
+          <group position={[0.92, 0.02, 0]}>
+            <mesh position={[0, 0.16, 0]} rotation={[0, 0, -0.1]}>
+              <cylinderGeometry args={[0.028, 0.028, 0.48, 16]} />
+              <meshStandardMaterial color="#F8FAFC" metalness={0.8} roughness={0.2} />
+            </mesh>
+            <mesh position={[0.08, 0.22, 0]} rotation={[0, 0, 0.55]}>
+              <cylinderGeometry args={[0.016, 0.016, 0.32, 12]} />
+              <meshStandardMaterial color="#E2E8F0" metalness={0.75} roughness={0.25} />
+            </mesh>
+            <mesh position={[0, -0.1, 0]} rotation={[Math.PI / 2, 0, 0]}>
+              <cylinderGeometry args={[0.13, 0.13, 0.08, 24]} />
+              <meshStandardMaterial color="#0F172A" roughness={0.85} />
+            </mesh>
+            <mesh position={[0, -0.1, 0]} rotation={[Math.PI / 2, 0, 0]}>
+              <cylinderGeometry args={[0.06, 0.06, 0.085, 16]} />
+              <meshStandardMaterial color="#F8FAFC" metalness={0.75} roughness={0.25} />
+            </mesh>
+          </group>
+
+          {/* Port & Starboard Wide-Track Main Gear Assemblies */}
+          {[-0.64, 0.64].map((zPos, idx) => (
+            <group key={idx} position={[-0.68, 0.02, zPos]}>
+              <mesh
+                position={[0, 0.2, zPos > 0 ? -0.18 : 0.18]}
+                rotation={[zPos > 0 ? 0.38 : -0.38, 0, 0]}
+              >
+                <cylinderGeometry args={[0.038, 0.038, 0.62, 16]} />
+                <meshStandardMaterial color="#F8FAFC" metalness={0.8} roughness={0.2} />
+              </mesh>
+              <mesh
+                position={[0, 0.28, zPos > 0 ? 0.06 : -0.06]}
+                rotation={[zPos > 0 ? -0.22 : 0.22, 0, 0]}
+              >
+                <boxGeometry args={[0.64, 0.24, 0.02]} />
+                <meshStandardMaterial color="#E2E8F0" metalness={0.5} roughness={0.35} />
+              </mesh>
+              <mesh position={[0, -0.08, 0]} rotation={[Math.PI / 2, 0, 0]}>
+                <cylinderGeometry args={[0.2, 0.2, 0.12, 28]} />
+                <meshStandardMaterial color="#0F172A" roughness={0.88} />
+              </mesh>
+              <mesh position={[0, -0.08, 0]} rotation={[Math.PI / 2, 0, 0]}>
+                <cylinderGeometry args={[0.095, 0.095, 0.125, 20]} />
+                <meshStandardMaterial color="#F8FAFC" metalness={0.8} roughness={0.22} />
+              </mesh>
+            </group>
+          ))}
+        </ExplodablePartGroup>
+      )}
+
+      {/* ================================================================= */}
+      {/* 12 // WINGTIP AIM-9X, AIM-120 AMRAAMS & 370-GAL DROP TANKS        */}
+      {/* ================================================================= */}
+      <ExplodablePartGroup
+        part={getPart('stores')}
+        explodeFactor={explodeFactor}
+        isSelected={selectedPart === 'stores'}
+        isHovered={hoveredPart === 'stores'}
+        onSelect={onSelectPart}
+        onHover={onHoverPart}
+        showLabels={showLabels}
+      >
+        {[-1, 1].map((side) => (
+          <group key={side}>
+            {/* Wingtip LAU-129 Rail + AIM-9X Sidewinder (Flush with wingtip at x_local=-0.68, z=±2.78) */}
+            <group position={[-0.68, 0.18, side * 2.78]}>
+              <mesh>
+                <boxGeometry args={[1.15, 0.045, 0.048]} />
+                <meshStandardMaterial
+                  {...matProps('stores', '#64748B', 0.6, 0.32)}
+                />
+              </mesh>
+              {/* AIM-9X Missile Body */}
+              <mesh position={[0.14, 0, side * 0.045]} rotation={[0, 0, -Math.PI / 2]}>
+                <cylinderGeometry args={[0.032, 0.032, 1.52, 20]} />
+                <meshStandardMaterial color="#E2E8F0" metalness={0.55} roughness={0.3} />
+              </mesh>
+              {/* Seeker Nose Dome */}
+              <mesh position={[0.96, 0, side * 0.045]} rotation={[0, 0, -Math.PI / 2]}>
+                <coneGeometry args={[0.032, 0.14, 20]} />
+                <meshStandardMaterial color="#1E293B" metalness={0.9} roughness={0.12} />
+              </mesh>
+              {/* Forward Canard & Aft Tail Cruciform Fins */}
+              {[0.58, -0.52].map((fx, fIdx) => (
+                <group key={fIdx} position={[fx, 0, side * 0.045]}>
+                  <mesh rotation={[Math.PI / 4, 0, 0]}>
+                    <boxGeometry args={[0.14, 0.16, 0.008]} />
+                    <meshStandardMaterial color="#334155" metalness={0.7} />
+                  </mesh>
+                  <mesh rotation={[-Math.PI / 4, 0, 0]}>
+                    <boxGeometry args={[0.14, 0.16, 0.008]} />
+                    <meshStandardMaterial color="#334155" metalness={0.7} />
+                  </mesh>
+                </group>
+              ))}
+            </group>
+
+            {/* Mid-Span Under-Wing AIM-120 AMRAAM Pylon & Missile */}
+            <group position={[-0.42, 0.04, side * 1.88]}>
+              <mesh position={[0, 0.08, 0]}>
+                <boxGeometry args={[0.64, 0.1, 0.042]} />
+                <meshStandardMaterial color="#64748B" metalness={0.6} roughness={0.35} />
+              </mesh>
+              <mesh rotation={[0, 0, -Math.PI / 2]}>
+                <cylinderGeometry args={[0.04, 0.04, 1.78, 20]} />
+                <meshStandardMaterial color="#CBD5E1" metalness={0.6} roughness={0.28} />
+              </mesh>
+              <mesh position={[1.0, 0, 0]} rotation={[0, 0, -Math.PI / 2]}>
+                <coneGeometry args={[0.04, 0.22, 20]} />
+                <meshStandardMaterial color="#F8FAFC" metalness={0.4} roughness={0.3} />
+              </mesh>
+            </group>
+
+            {/* Inboard 370-Gallon Sears-Haack External Drop Tank & Pylon */}
+            <group position={[-0.18, -0.06, side * 1.14]}>
+              <mesh position={[0, 0.16, 0]}>
+                <boxGeometry args={[0.8, 0.16, 0.05]} />
+                <meshStandardMaterial
+                  {...matProps('stores', '#64748B', 0.58, 0.35)}
+                />
+              </mesh>
+              <mesh geometry={geometries.dropTankGeo}>
+                <meshStandardMaterial
+                  {...matProps('stores', '#CBD5E1', 0.48, 0.34)}
+                />
+              </mesh>
+              <mesh position={[-0.88, 0, 0]} rotation={[Math.PI / 4, 0, 0]}>
+                <boxGeometry args={[0.24, 0.32, 0.014]} />
+                <meshStandardMaterial color="#64748B" />
+              </mesh>
+              <mesh position={[-0.88, 0, 0]} rotation={[-Math.PI / 4, 0, 0]}>
+                <boxGeometry args={[0.24, 0.32, 0.014]} />
+                <meshStandardMaterial color="#64748B" />
+              </mesh>
+            </group>
+          </group>
+        ))}
+      </ExplodablePartGroup>
+
+      {/* High-Speed Flight Streamlines */}
+      {flightMode && (
+        <points ref={streamlinesRef}>
+          <bufferGeometry>
+            <bufferAttribute
+              attach="attributes-position"
+              count={streamPositions.length / 3}
+              array={streamPositions}
+              itemSize={3}
+            />
+          </bufferGeometry>
+          <pointsMaterial color="#5AA6FF" size={0.048} transparent opacity={0.8} />
+        </points>
+      )}
+    </group>
+  );
 }
 
 export default function F16FalconAssembly({
-    explodeFactor = 0,
-    selectedPart,
-    selectedPartId,
-    onSelectPart = () => {},
-    flightMode = false,
-    wireframe = false,
-    viewPreset,
-    cameraView,
-    showLabels = true,
-    rigState = {},
-    controlDeflections = {},
+  explodeFactor = 0,
+  selectedPart = null,
+  selectedPartId,
+  onSelectPart = () => {},
+  flightMode = false,
+  wireframe = false,
+  viewPreset,
+  cameraView,
+  showLabels = true,
+  rigState = {},
+  controlDeflections = {},
 }) {
-    const controlsRef = useRef();
-    const animFramesRef = useRef(0);
-    const [hoveredPart, setHoveredPart] = useState(null);
+  const controlsRef = useRef();
+  const animFramesRef = useRef(0);
+  const [hoveredPart, setHoveredPart] = React.useState(null);
 
-    // Support `null` ("Free Orbit / No Selection") without forcing a fallback part!
-    const activeSelectedPart =
-        selectedPartId !== undefined
-            ? selectedPartId
-            : selectedPart !== undefined
-            ? selectedPart
-            : null;
+  // Respect explicit `null` so the user can enter Free Orbit with no selection!
+  const activeSelectedPart =
+    selectedPartId !== undefined ? selectedPartId : selectedPart;
+  const activeViewPreset = cameraView || viewPreset || 'overview';
+  const mergedRigState = {
+    ...rigState,
+    aileronDeg: controlDeflections.aileron ?? rigState.aileronDeg ?? 0,
+    elevatorDeg: controlDeflections.elevator ?? rigState.elevatorDeg ?? 0,
+    rudderDeg: controlDeflections.rudder ?? rigState.rudderDeg ?? 0,
+    flapDeg: controlDeflections.flaps ?? rigState.flapDeg ?? 0,
+  };
 
-    const activeViewPreset = cameraView || viewPreset || 'overview';
-    const mergedRigState = {
-        ...rigState,
-        aileronDeg: controlDeflections.aileron ?? rigState.aileronDeg ?? 0,
-        elevatorDeg: controlDeflections.elevator ?? rigState.elevatorDeg ?? 0,
-        rudderDeg: controlDeflections.rudder ?? rigState.rudderDeg ?? 0,
-        flapDeg: controlDeflections.flaps ?? rigState.flapDeg ?? 0,
-    };
+  return (
+    <div
+      style={{
+        width: '100%',
+        height: '100%',
+        position: 'relative',
+        background: 'var(--scene-bg)',
+        overflow: 'hidden',
+      }}
+    >
+      <Canvas
+        dpr={[1, 2]}
+        camera={{ position: [6.4, 2.3, 6.8], fov: 38, near: 0.1, far: 120 }}
+        gl={{ powerPreference: 'high-performance', antialias: true }}
+        onPointerMissed={() => {
+          // Clicking empty space clears any active selection so the user can move freely!
+          onSelectPart(null);
+        }}
+      >
+        <ambientLight intensity={1.1} />
+        <directionalLight position={[10, 14, 8]} intensity={1.85} color="#FFFFFF" />
+        <directionalLight position={[-10, 4, -8]} intensity={0.85} color="#5AA6FF" />
+        <directionalLight position={[0, -8, 4]} intensity={0.45} color="#93C5FD" />
+        <pointLight
+          position={[-4.2, 0.5, 0]}
+          intensity={flightMode ? 2.8 : 0.5}
+          color={flightMode ? '#F97316' : '#2E8BFF'}
+        />
 
-    return (
-        <div
-            style={{
-                width: '100%',
-                height: '100%',
-                position: 'relative',
-                background: 'var(--scene-bg)',
-                overflow: 'hidden',
-            }}
-        >
-            <Canvas
-                shadows
-                dpr={[1, 2]}
-                camera={{ position: [6.0, 2.35, 6.5], fov: 38, near: 0.1, far: 120 }}
-                gl={{ powerPreference: 'high-performance', antialias: true }}
-                onPointerMissed={() => {
-                    onSelectPart(null);
-                }}
-            >
-                <ambientLight intensity={1.05} />
-                <hemisphereLight args={['#E0F2FE', '#1E293B', 0.65]} />
-                <directionalLight
-                    position={[10, 14, 8]}
-                    intensity={1.75}
-                    color="#FFFFFF"
-                    castShadow
-                />
-                <directionalLight position={[-8, -5, -6]} intensity={0.7} color="#5AA6FF" />
-                <pointLight
-                    position={[-4, 1, 0]}
-                    intensity={flightMode ? 2.6 : 0.45}
-                    color="#2E8BFF"
-                />
+        <F16SculptedModel
+          explodeFactor={explodeFactor}
+          selectedPart={activeSelectedPart}
+          hoveredPart={hoveredPart}
+          onSelectPart={onSelectPart}
+          onHoverPart={setHoveredPart}
+          flightMode={flightMode}
+          wireframe={wireframe}
+          showLabels={showLabels}
+          rigState={mergedRigState}
+        />
 
-                {/* Subtle Studio Hangar Floor Grid & Contact Shadow */}
-                <gridHelper
-                    args={[28, 28, '#2E8BFF', '#334155']}
-                    position={[0, -1.16, 0]}
-                    material-opacity={0.22}
-                    material-transparent
-                />
-                <ContactShadows
-                    position={[0, -1.15, 0]}
-                    opacity={0.42}
-                    scale={18}
-                    blur={2.4}
-                    far={4.5}
-                />
+        <ContactShadows
+          position={[0, -1.15, 0]}
+          opacity={0.42}
+          scale={18}
+          blur={2.4}
+          far={4.5}
+        />
 
-                <F16SculptedModel
-                    explodeFactor={explodeFactor}
-                    selectedPart={activeSelectedPart}
-                    hoveredPart={hoveredPart}
-                    onSelectPart={onSelectPart}
-                    onHoverPart={setHoveredPart}
-                    flightMode={flightMode}
-                    wireframe={wireframe}
-                    showLabels={showLabels}
-                    rigState={mergedRigState}
-                />
+        <OrbitControls
+          ref={controlsRef}
+          enableDamping
+          dampingFactor={0.07}
+          minDistance={2.2}
+          maxDistance={18.0}
+          onStart={() => {
+            // Immediately stop any camera tween as soon as the user touches the mouse/trackpad
+            animFramesRef.current = 0;
+          }}
+        />
 
-                <OrbitControls
-                    ref={controlsRef}
-                    enableDamping
-                    dampingFactor={0.07}
-                    minDistance={2.0}
-                    maxDistance={18.0}
-                    onStart={() => {
-                        // Immediately stop programmatic camera transitions when the user drags/zooms
-                        animFramesRef.current = 0;
-                    }}
-                />
-
-                <SmoothViewCamera
-                    viewPreset={activeViewPreset}
-                    selectedPart={activeSelectedPart}
-                    explodeFactor={explodeFactor}
-                    controlsRef={controlsRef}
-                    animFramesRef={animFramesRef}
-                />
-            </Canvas>
-        </div>
-    );
+        <SmoothViewCamera
+          viewPreset={activeViewPreset}
+          selectedPart={activeSelectedPart}
+          explodeFactor={explodeFactor}
+          controlsRef={controlsRef}
+          animFramesRef={animFramesRef}
+        />
+      </Canvas>
+    </div>
+  );
 }

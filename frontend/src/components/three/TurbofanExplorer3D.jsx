@@ -242,7 +242,89 @@ export const TOUR_SEGMENTS = [
 ];
 
 /**
- * Helper to create a multi-blade axial rotor disk
+ * Builds a 3D lofted geometry from cross-sectional stations
+ */
+function buildLoftedWingGeo(stations, segs = 36) {
+  const numStations = stations.length;
+  const positions = [];
+  const uvs = [];
+  const indices = [];
+
+  for (let i = 0; i < numStations; i++) {
+    const v = i / (numStations - 1);
+    const ring = stations[i];
+    for (let j = 0; j <= segs; j++) {
+      const u = j / segs;
+      const pt = ring[j % segs];
+      positions.push(pt[0], pt[1], pt[2]);
+      uvs.push(u, v);
+    }
+  }
+
+  const ringVerts = segs + 1;
+  for (let i = 0; i < numStations - 1; i++) {
+    for (let j = 0; j < segs; j++) {
+      const a = i * ringVerts + j;
+      const b = (i + 1) * ringVerts + j;
+      const c = (i + 1) * ringVerts + (j + 1);
+      const d = i * ringVerts + (j + 1);
+      indices.push(a, b, d);
+      indices.push(b, c, d);
+    }
+  }
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geo.setIndex(indices);
+  geo.computeVertexNormals();
+  return geo;
+}
+
+/**
+ * Creates a cambered supercritical airfoil cross-section ring at span station Z
+ */
+function makeSupercriticalAirfoilRing({
+  xLead,
+  yOffset,
+  zSpan,
+  chord,
+  thicknessRatio = 0.11,
+  camberRatio = 0.024,
+  twistRad = 0,
+  segs = 36,
+}) {
+  const ring = [];
+  const maxT = chord * thicknessRatio;
+  const maxC = chord * camberRatio;
+  const cosT = Math.cos(twistRad);
+  const sinT = Math.sin(twistRad);
+
+  for (let j = 0; j < segs; j++) {
+    const theta = (j / segs) * Math.PI * 2;
+    const xc = 0.5 * (1 - Math.cos(theta)); // 0 at leading edge, 1 at trailing edge
+    const yt =
+      5 *
+      maxT *
+      (0.2969 * Math.sqrt(Math.max(0.0001, xc)) -
+        0.126 * xc -
+        0.3516 * xc * xc +
+        0.2843 * xc * xc * xc -
+        0.1015 * xc * xc * xc * xc);
+    // Supercritical flattish upper surface, cambered aft belly
+    const yc = maxC * Math.sin(Math.PI * Math.pow(xc, 0.85));
+    const localX = xc * chord;
+    const localY = theta < Math.PI ? yc + yt : yc - yt * 0.78;
+
+    const rotX = localX * cosT - localY * sinT;
+    const rotY = localX * sinT + localY * cosT;
+    ring.push([xLead + rotX, yOffset + rotY, zSpan]);
+  }
+  return ring;
+}
+
+/**
+ * Helper to create a multi-blade axial rotor disk with cambered twisted airfoils
  */
 function BladedRotorDisk({
   radiusOuter = 1.2,
@@ -257,40 +339,67 @@ function BladedRotorDisk({
   const blades = useMemo(() => {
     const arr = [];
     for (let i = 0; i < bladeCount; i++) {
-      const angle = (i / bladeCount) * Math.PI * 2;
-      arr.push(angle);
+      arr.push((i / bladeCount) * Math.PI * 2);
     }
     return arr;
   }, [bladeCount]);
 
   const bladeLen = Math.max(0.12, radiusOuter - radiusInner);
-  const midR = radiusInner + bladeLen * 0.5;
+
+  const bladeGeo = useMemo(() => {
+    const stations = [];
+    const spanSteps = 6;
+    const segs = 16;
+    for (let s = 0; s <= spanSteps; s++) {
+      const frac = s / spanSteps;
+      const r = radiusInner * 0.96 + frac * (bladeLen * 1.04);
+      const localChord = bladeChord * (0.88 + 0.24 * Math.sin(frac * Math.PI * 0.75));
+      const localTwist = twistRad * (0.65 + 0.65 * frac);
+      const sweepX = Math.sin(frac * Math.PI) * bladeChord * 0.18;
+      const cosA = Math.cos(localTwist);
+      const sinA = Math.sin(localTwist);
+
+      const ring = [];
+      for (let j = 0; j < segs; j++) {
+        const theta = (j / segs) * Math.PI * 2;
+        const xc = 0.5 * (1 - Math.cos(theta)) - 0.5; // -0.5 to +0.5
+        const yt =
+          bladeThickness *
+          (1 - 0.35 * frac) *
+          Math.sin(theta) *
+          (1 - 0.25 * (xc + 0.5));
+        const camber = bladeThickness * 0.55 * (0.25 - xc * xc);
+        const bx = xc * localChord;
+        const bz = yt + camber;
+        const rx = bx * cosA - bz * sinA + sweepX;
+        const rz = bx * sinA + bz * cosA;
+        ring.push([rx, r, rz]);
+      }
+      stations.push(ring);
+    }
+    return buildLoftedWingGeo(stations, segs);
+  }, [radiusInner, bladeLen, bladeChord, bladeThickness, twistRad]);
 
   return (
     <group>
       {/* Rotor Hub Ring */}
       <mesh rotation={[0, 0, Math.PI / 2]}>
-        <cylinderGeometry args={[radiusInner, radiusInner, bladeChord * 1.15, 28]} />
-        <meshStandardMaterial color={hubColor} metalness={0.82} roughness={0.28} />
+        <cylinderGeometry args={[radiusInner, radiusInner, bladeChord * 1.18, 32]} />
+        <meshStandardMaterial color={hubColor} metalness={0.84} roughness={0.25} />
       </mesh>
-      {/* Individual Twisted Airfoil Blades */}
+      {/* Individual Twisted Cambered Airfoil Blades */}
       {blades.map((angle, idx) => (
-        <group key={idx} rotation={[angle, 0, 0]}>
-          <mesh
-            position={[0, midR, 0]}
-            rotation={[0, twistRad, 0]}
-          >
-            <boxGeometry args={[bladeChord, bladeLen, bladeThickness]} />
-            <meshStandardMaterial color={bladeColor} metalness={0.88} roughness={0.2} />
-          </mesh>
-        </group>
+        <mesh key={idx} geometry={bladeGeo} rotation={[angle, 0, 0]}>
+          <meshStandardMaterial color={bladeColor} metalness={0.88} roughness={0.18} />
+        </mesh>
       ))}
     </group>
   );
 }
 
 /**
- * Camera controller that supports both guided timeline tour and stage inspection
+ * Camera controller that supports both guided timeline tour and smooth stage inspection
+ * while immediately yielding to user mouse interaction so OrbitControls never fights.
  */
 function TurbofanCameraRig({
   followCamera,
@@ -299,20 +408,23 @@ function TurbofanCameraRig({
   selectedStageId,
   explodeFactor,
   controlsRef,
+  tweenFramesRef,
 }) {
   const { camera } = useThree();
-  const desiredPos = useRef(new THREE.Vector3(-4.5, 2.1, 8.2));
+  const desiredPos = useRef(new THREE.Vector3(-4.8, 2.0, 8.2));
   const desiredTarget = useRef(new THREE.Vector3(0.2, 0.1, 0));
 
   useEffect(() => {
     if (followCamera && tourPlaying) return;
+    if (!followCamera) return;
     const stg = TURBOFAN_STAGES.find((s) => s.id === selectedStageId);
     if (stg) {
       const currentX = THREE.MathUtils.lerp(stg.baseX, stg.explodeX, explodeFactor);
-      desiredPos.current.set(currentX - 1.2, 1.55, 5.6 + explodeFactor * 2.5);
-      desiredTarget.current.set(currentX, 0.1, 0);
+      desiredPos.current.set(currentX - 1.35, 1.45, 5.8 + explodeFactor * 2.4);
+      desiredTarget.current.set(currentX, 0.05, 0);
+      tweenFramesRef.current = 42;
     }
-  }, [selectedStageId, explodeFactor, followCamera, tourPlaying]);
+  }, [selectedStageId, explodeFactor, followCamera, tourPlaying, tweenFramesRef]);
 
   useFrame((_, dt) => {
     if (followCamera && tourPlaying) {
@@ -324,6 +436,13 @@ function TurbofanCameraRig({
       camera.position.lerp(desiredPos.current, Math.min(1, dt * 2.8));
       if (controlsRef.current) {
         controlsRef.current.target.lerp(desiredTarget.current, Math.min(1, dt * 3.5));
+        controlsRef.current.update();
+      }
+    } else if (followCamera && tweenFramesRef.current > 0) {
+      tweenFramesRef.current -= 1;
+      camera.position.lerp(desiredPos.current, Math.min(1, dt * 4.2));
+      if (controlsRef.current) {
+        controlsRef.current.target.lerp(desiredTarget.current, Math.min(1, dt * 4.8));
         controlsRef.current.update();
       }
     }
@@ -341,11 +460,15 @@ function TurbofanAssemblyScene({
   cowlingOpen,
   explodeFactor,
   throttlePct = 82,
-  bypassRatio = 8.5,
   showLabels = true,
 }) {
-  const lpSpoolRef = useRef();
-  const hpSpoolRef = useRef();
+  // Dual-spool rotor refs so ALL LP stages spin together at N1 and ALL HP stages spin at N2
+  const lpFanRotorRef = useRef();
+  const lpBoosterRotorRef = useRef();
+  const lpTurbineRotorRef = useRef();
+  const hpCompressorRotorRef = useRef();
+  const hpTurbineRotorRef = useRef();
+
   const portCowlingRef = useRef();
   const stbdCowlingRef = useRef();
   const flameRingRef = useRef();
@@ -357,6 +480,164 @@ function TurbofanAssemblyScene({
   const currentStageX = useRef(
     Object.fromEntries(TURBOFAN_STAGES.map((s) => [s.id, s.baseX]))
   );
+
+  // 1. Sculpted Supercritical Commercial Airliner Wing + Blended Winglet + Aerodynamic Pylon
+  const { wingGeo, pylonGeo, canoeGeo, cowlingOuterPortGeo, cowlingOuterStbdGeo } =
+    useMemo(() => {
+      // Swept supercritical wing from fuselage root (z = -5.8) across engine (z = 0) to wingtip + winglet (z = +5.6)
+      const wingStations = [
+        makeSupercriticalAirfoilRing({
+          xLead: -3.2,
+          yOffset: -0.15,
+          zSpan: -5.8,
+          chord: 7.4,
+          thicknessRatio: 0.125,
+          camberRatio: 0.028,
+          twistRad: 0.03,
+        }),
+        makeSupercriticalAirfoilRing({
+          xLead: -2.45,
+          yOffset: 0.02,
+          zSpan: -2.6,
+          chord: 6.2,
+          thicknessRatio: 0.115,
+          camberRatio: 0.025,
+          twistRad: 0.02,
+        }),
+        makeSupercriticalAirfoilRing({
+          xLead: -1.9,
+          yOffset: 0.16,
+          zSpan: 0.0,
+          chord: 5.3,
+          thicknessRatio: 0.108,
+          camberRatio: 0.022,
+          twistRad: 0.01,
+        }),
+        makeSupercriticalAirfoilRing({
+          xLead: -1.15,
+          yOffset: 0.34,
+          zSpan: 3.1,
+          chord: 4.1,
+          thicknessRatio: 0.098,
+          camberRatio: 0.018,
+          twistRad: -0.01,
+        }),
+        makeSupercriticalAirfoilRing({
+          xLead: -0.45,
+          yOffset: 0.52,
+          zSpan: 5.2,
+          chord: 2.75,
+          thicknessRatio: 0.088,
+          camberRatio: 0.014,
+          twistRad: -0.02,
+        }),
+        // Raked Winglet Transition
+        makeSupercriticalAirfoilRing({
+          xLead: 0.25,
+          yOffset: 1.15,
+          zSpan: 5.85,
+          chord: 1.55,
+          thicknessRatio: 0.08,
+          camberRatio: 0.01,
+          twistRad: -0.03,
+        }),
+      ];
+      const wGeo = buildLoftedWingGeo(wingStations, 36);
+
+      // Streamlined Aerodynamic Engine Pylon Strut (Symmetric airfoil lofted vertically from nacelle top to wing lower surface)
+      const pylonStations = [
+        // Top attachment under wing
+        makeSupercriticalAirfoilRing({
+          xLead: -1.85,
+          yOffset: 0.18,
+          zSpan: 0,
+          chord: 5.2,
+          thicknessRatio: 0.085,
+          camberRatio: 0,
+          twistRad: 0,
+        }).map(([x, z, _]) => [x, 0.22, z]),
+        // Mid-upper pylon
+        makeSupercriticalAirfoilRing({
+          xLead: -2.45,
+          yOffset: 0,
+          zSpan: 0,
+          chord: 5.6,
+          thicknessRatio: 0.078,
+          camberRatio: 0,
+          twistRad: 0,
+        }).map(([x, z, _]) => [x, -0.25, z]),
+        // Forward-swept pylon brow above fan case
+        makeSupercriticalAirfoilRing({
+          xLead: -2.95,
+          yOffset: 0,
+          zSpan: 0,
+          chord: 5.8,
+          thicknessRatio: 0.072,
+          camberRatio: 0,
+          twistRad: 0,
+        }).map(([x, z, _]) => [x, -0.72, z]),
+        // Nacelle dorsal spine attachment
+        makeSupercriticalAirfoilRing({
+          xLead: -2.65,
+          yOffset: 0,
+          zSpan: 0,
+          chord: 5.1,
+          thicknessRatio: 0.068,
+          camberRatio: 0,
+          twistRad: 0,
+        }).map(([x, z, _]) => [x, -1.12, z]),
+      ];
+      const pGeo = buildLoftedWingGeo(pylonStations, 36);
+
+      // Smooth teardrop flap-track fairing canoe (LatheGeometry)
+      const canoePts = [];
+      for (let i = 0; i <= 20; i++) {
+        const u = i / 20;
+        const r = Math.sin(u * Math.PI) * (1 - 0.35 * u) * 0.21;
+        const y = (u - 0.5) * 2.4;
+        canoePts.push(new THREE.Vector2(Math.max(0.002, r), y));
+      }
+      const cGeo = new THREE.LatheGeometry(canoePts, 24);
+      cGeo.rotateZ(Math.PI / 2);
+
+      // Barrel-curved nacelle clamshell cowling doors (LatheGeometry half-shells)
+      // In lathe coordinates: Y is axial (will be rotated to X), X is radius
+      const cowlPts = [];
+      const cowlSteps = 28;
+      for (let i = 0; i <= cowlSteps; i++) {
+        const u = i / cowlSteps; // 0 = front behind inlet lip, 1 = aft bypass exit
+        // Smooth barrel curve: 1.78 at front, swelling to 1.88 at mid-chord, tapering to 1.54 at aft exit
+        const barrelR =
+          1.78 +
+          0.12 * Math.sin(u * Math.PI) -
+          0.24 * Math.pow(u, 1.45);
+        const axialY = (0.5 - u) * 4.95;
+        cowlPts.push(new THREE.Vector2(barrelR, axialY));
+      }
+      const portShell = new THREE.LatheGeometry(
+        cowlPts,
+        40,
+        0.1,
+        Math.PI - 0.2
+      );
+      portShell.rotateZ(Math.PI / 2);
+
+      const stbdShell = new THREE.LatheGeometry(
+        cowlPts,
+        40,
+        Math.PI + 0.1,
+        Math.PI - 0.2
+      );
+      stbdShell.rotateZ(Math.PI / 2);
+
+      return {
+        wingGeo: wGeo,
+        pylonGeo: pGeo,
+        canoeGeo: cGeo,
+        cowlingOuterPortGeo: portShell,
+        cowlingOuterStbdGeo: stbdShell,
+      };
+    }, []);
 
   // Combustor spark & flow particle data
   const flowParticles = useMemo(() => {
@@ -387,14 +668,17 @@ function TurbofanAssemblyScene({
     const t = state.clock.elapsedTime;
     const throttleNorm = Math.max(0.15, throttlePct / 100);
 
-    // 1. Dual-spool independent rotation speeds:
-    // Inner LP Shaft (N1) spins moderate; Outer HP Shaft (N2) spins ~2.7x faster
-    if (lpSpoolRef.current) {
-      lpSpoolRef.current.rotation.x += dt * 4.2 * throttleNorm;
-    }
-    if (hpSpoolRef.current) {
-      hpSpoolRef.current.rotation.x += dt * 11.4 * throttleNorm;
-    }
+    // 1. Synchronized Dual-Spool Rotation:
+    // Inner LP Shaft (N1): Fan + LP Booster + LP Turbine spin together
+    const dAngleLP = dt * 4.2 * throttleNorm;
+    if (lpFanRotorRef.current) lpFanRotorRef.current.rotation.x += dAngleLP;
+    if (lpBoosterRotorRef.current) lpBoosterRotorRef.current.rotation.x += dAngleLP;
+    if (lpTurbineRotorRef.current) lpTurbineRotorRef.current.rotation.x += dAngleLP;
+
+    // Outer HP Shaft (N2): HP Compressor + HP Turbine spin ~2.7x faster
+    const dAngleHP = dt * 11.4 * throttleNorm;
+    if (hpCompressorRotorRef.current) hpCompressorRotorRef.current.rotation.x += dAngleHP;
+    if (hpTurbineRotorRef.current) hpTurbineRotorRef.current.rotation.x += dAngleHP;
 
     // 2. Smooth axial stage explosion interpolation
     TURBOFAN_STAGES.forEach((stg) => {
@@ -410,7 +694,7 @@ function TurbofanAssemblyScene({
       }
     });
 
-    // 3. Hinged Clamshell Cowling Doors (swing open up to 78 degrees)
+    // 3. Hinged Clamshell Cowling Doors (swing open up to 74 degrees on upper pylon hinges)
     const targetCowlingAngle = cowlingOpen ? 1.28 : 0.0;
     if (portCowlingRef.current) {
       portCowlingRef.current.rotation.x = THREE.MathUtils.lerp(
@@ -454,42 +738,83 @@ function TurbofanAssemblyScene({
     }
   });
 
-  // Wing & Pylon fades back slightly when stages are exploded so nothing blocks the view
-  const wingOffsetY = explodeFactor * 0.85;
+  // Wing & Pylon lifts slightly when stages are fully exploded so callouts remain unobstructed
+  const wingOffsetY = explodeFactor * 0.75;
 
   return (
     <group>
       {/* ================================================================= */}
-      {/* COMMERCIAL AIRLINER WING SECTION & STRUCTURAL PYLON (TOP MOUNT)   */}
+      {/* SCULPTED COMMERCIAL AIRLINER WING, PYLON & FUSELAGE SECTION       */}
       {/* ================================================================= */}
-      <group position={[0.4, 2.35 + wingOffsetY, 0]}>
-        {/* Swept Wing Box Section */}
-        <mesh position={[0.8, 0.85, 0]} rotation={[0.04, -0.18, -0.05]}>
-          <boxGeometry args={[5.8, 0.36, 9.6]} />
-          <meshStandardMaterial color="#CBD5E1" metalness={0.65} roughness={0.32} />
+      <group position={[0.2, 2.75 + wingOffsetY, 0]}>
+        {/* True 3D Lofted Supercritical Airfoil Wing + Raked Winglet */}
+        <mesh geometry={wingGeo} castShadow receiveShadow>
+          <meshStandardMaterial
+            color="#E2E8F0"
+            metalness={0.62}
+            roughness={0.28}
+            side={THREE.DoubleSide}
+          />
         </mesh>
-        {/* Leading Edge Slat Highlight */}
-        <mesh position={[-1.95, 0.72, 0]} rotation={[0.04, -0.18, -0.12]}>
-          <cylinderGeometry args={[0.16, 0.16, 9.6, 20]} rotation={[Math.PI / 2, 0, 0]} />
-          <meshStandardMaterial color="#94A3B8" metalness={0.85} roughness={0.2} />
+
+        {/* Streamlined Aerodynamic Engine Pylon Strut */}
+        <mesh geometry={pylonGeo} castShadow>
+          <meshStandardMaterial
+            color="#94A3B8"
+            metalness={0.72}
+            roughness={0.26}
+            side={THREE.DoubleSide}
+          />
         </mesh>
-        {/* Under-wing Flap Track Fairings (Canoes) */}
-        {[-2.8, 2.8].map((zPos, i) => (
-          <mesh key={i} position={[2.6, 0.48, zPos]} rotation={[0, 0, Math.PI / 2]}>
-            <coneGeometry args={[0.22, 2.2, 16]} />
-            <meshStandardMaterial color="#94A3B8" metalness={0.6} roughness={0.35} />
+
+        {/* Sculpted Teardrop Flap-Track Fairings ("Canoes") */}
+        {[-2.4, 2.3].map((zPos, i) => (
+          <mesh
+            key={i}
+            geometry={canoeGeo}
+            position={[2.35 + zPos * 0.14, 0.02 + zPos * 0.04, zPos]}
+          >
+            <meshStandardMaterial color="#CBD5E1" metalness={0.68} roughness={0.28} />
           </mesh>
         ))}
-        {/* Aerodynamic Engine Pylon Strut */}
-        <mesh position={[-0.2, -0.15, 0]}>
-          <boxGeometry args={[4.6, 1.45, 0.44]} />
-          <meshStandardMaterial color="#64748B" metalness={0.72} roughness={0.3} />
-        </mesh>
-        {/* Pylon Forward Fairing */}
-        <mesh position={[-2.4, -0.45, 0]} rotation={[0, 0, -0.45]}>
-          <boxGeometry args={[1.4, 0.85, 0.38]} />
-          <meshStandardMaterial color="#475569" metalness={0.75} roughness={0.28} />
-        </mesh>
+
+        {/* Commercial Airliner Fuselage Barrel Section at Wing Root (Video 2 Background Context) */}
+        <group position={[0.4, 0.55, -7.85]}>
+          <mesh rotation={[0, 0, Math.PI / 2]}>
+            <cylinderGeometry args={[2.85, 2.85, 13.5, 48, 1, true, -Math.PI * 0.15, Math.PI * 0.85]} />
+            <meshStandardMaterial
+              color="#F1F5F9"
+              metalness={0.55}
+              roughness={0.3}
+              side={THREE.DoubleSide}
+            />
+          </mesh>
+          {/* Airline Cheatline Stripe */}
+          <mesh rotation={[0, 0, Math.PI / 2]} position={[0, 0.35, 0.02]}>
+            <cylinderGeometry args={[2.86, 2.86, 13.5, 48, 1, true, 0.36, 0.08]} />
+            <meshStandardMaterial color="#0284C7" metalness={0.7} roughness={0.25} />
+          </mesh>
+          {/* Illuminated Passenger Cabin Windows */}
+          {Array.from({ length: 16 }).map((_, idx) => {
+            const xWin = -5.4 + idx * 0.72;
+            return (
+              <mesh
+                key={idx}
+                position={[xWin, 0.92, 2.71]}
+                rotation={[0.32, 0, 0]}
+              >
+                <capsuleGeometry args={[0.085, 0.11, 8, 16]} />
+                <meshStandardMaterial
+                  color="#38BDF8"
+                  emissive="#38BDF8"
+                  emissiveIntensity={0.45}
+                  metalness={0.9}
+                  roughness={0.1}
+                />
+              </mesh>
+            );
+          })}
+        </group>
       </group>
 
       {/* ================================================================= */}
@@ -536,37 +861,42 @@ function TurbofanAssemblyScene({
         }}
       >
         {/* Polished Chrome Acoustic Inlet Lip Ring */}
-        <mesh rotation={[0, Math.PI / 2, 0]} position={[-0.35, 0, 0]}>
-          <torusGeometry args={[1.76, 0.16, 24, 64]} />
-          <meshStandardMaterial color="#E2E8F0" metalness={0.95} roughness={0.12} />
+        <mesh rotation={[0, Math.PI / 2, 0]} position={[-0.36, 0, 0]}>
+          <torusGeometry args={[1.76, 0.17, 28, 72]} />
+          <meshStandardMaterial color="#F1F5F9" metalness={0.96} roughness={0.1} />
         </mesh>
         {/* Fan Containment Ring (Kevlar-wrapped Titanium Case) */}
         <mesh rotation={[0, 0, Math.PI / 2]}>
-          <cylinderGeometry args={[1.78, 1.74, 0.68, 48, 1, true]} />
+          <cylinderGeometry args={[1.79, 1.76, 0.72, 48, 1, true]} />
           <meshStandardMaterial
             color={selectedStageId === 'fan' ? '#38BDF8' : '#334155'}
             metalness={0.78}
             roughness={0.28}
             side={THREE.DoubleSide}
             transparent
-            opacity={cowlingOpen ? 0.55 : 0.92}
+            opacity={cowlingOpen ? 0.62 : 0.96}
           />
         </mesh>
 
-        {/* Rotating LP Spool Assembly (Fan + LP Booster + LP Turbine) */}
-        <group ref={lpSpoolRef}>
-          {/* Conical Black/Titanium Spinner with White Spiral */}
+        {/* Rotating LP Fan Assembly */}
+        <group ref={lpFanRotorRef}>
+          {/* Elliptical Titanium Spinner Cone */}
           <mesh rotation={[0, 0, Math.PI / 2]} position={[-0.48, 0, 0]}>
-            <coneGeometry args={[0.48, 0.85, 32]} />
-            <meshStandardMaterial color="#1E293B" metalness={0.7} roughness={0.3} />
+            <coneGeometry args={[0.48, 0.88, 36]} />
+            <meshStandardMaterial color="#1E293B" metalness={0.75} roughness={0.25} />
+          </mesh>
+          {/* White Acoustic Safety Spiral Marker on Spinner */}
+          <mesh rotation={[0.35, 0, Math.PI / 2]} position={[-0.42, 0.04, 0]}>
+            <torusGeometry args={[0.24, 0.022, 12, 32, Math.PI * 1.35]} />
+            <meshBasicMaterial color="#F8FAFC" />
           </mesh>
           {/* 22 Wide-Chord Swept Titanium Fan Blades */}
           <BladedRotorDisk
             radiusOuter={1.68}
             radiusInner={0.46}
             bladeCount={22}
-            bladeChord={0.32}
-            bladeThickness={0.035}
+            bladeChord={0.34}
+            bladeThickness={0.036}
             twistRad={0.52}
             bladeColor="#E2E8F0"
             hubColor="#0284C7"
@@ -575,7 +905,7 @@ function TurbofanAssemblyScene({
       </group>
 
       {/* ================================================================= */}
-      {/* STAGE 2: BYPASS DUCT & HINGED CLAMSHELL COWLING DOORS (SUCK)      */}
+      {/* STAGE 2: BYPASS DUCT & BARREL CLAMSHELL COWLING DOORS (SUCK)      */}
       {/* ================================================================= */}
       <group
         ref={(el) => (stageRefs.current.bypass_duct = el)}
@@ -589,7 +919,7 @@ function TurbofanAssemblyScene({
         <BladedRotorDisk
           radiusOuter={1.68}
           radiusInner={1.08}
-          bladeCount={32}
+          bladeCount={34}
           bladeChord={0.22}
           bladeThickness={0.02}
           twistRad={-0.35}
@@ -607,74 +937,115 @@ function TurbofanAssemblyScene({
           />
         </mesh>
 
-        {/* HINGED PORT CLAMSHELL COWLING DOOR (Pivots at top Y = +1.76) */}
-        <group position={[1.4, 1.76, 0]} ref={portCowlingRef}>
+        {/* HINGED PORT CLAMSHELL COWLING DOOR (Pivots at top Y = +1.78) */}
+        <group position={[1.45, 1.78, 0]} ref={portCowlingRef}>
+          {/* Barrel-Curved Outer Nacelle Skin */}
           <mesh
-            position={[0, -1.76, 0]}
-            rotation={[0, 0, Math.PI / 2]}
+            geometry={cowlingOuterPortGeo}
+            position={[0, -1.78, 0]}
           >
-            <cylinderGeometry
-              args={[1.78, 1.62, 4.8, 36, 1, true, 0.12, Math.PI - 0.24]}
-            />
             <meshStandardMaterial
               color="#E2E8F0"
               metalness={0.68}
-              roughness={0.26}
+              roughness={0.24}
               side={THREE.DoubleSide}
             />
           </mesh>
-          {/* Interior Cyan Acoustic Lining */}
+          {/* Interior Acoustic Composite Liner */}
           <mesh
-            position={[0, -1.76, 0]}
-            rotation={[0, 0, Math.PI / 2]}
+            geometry={cowlingOuterPortGeo}
+            position={[0, -1.78, 0]}
+            scale={[0.98, 0.985, 0.985]}
           >
-            <cylinderGeometry
-              args={[1.75, 1.59, 4.7, 36, 1, true, 0.14, Math.PI - 0.28]}
-            />
             <meshStandardMaterial
-              color="#0284C7"
+              color="#0F172A"
               metalness={0.5}
-              roughness={0.4}
+              roughness={0.45}
               side={THREE.DoubleSide}
             />
           </mesh>
-          {/* Hydraulic Hold-Open Strut */}
-          {cowlingOpen && (
-            <mesh position={[-0.6, -0.95, 1.05]} rotation={[0.5, 0, 0]}>
-              <cylinderGeometry args={[0.025, 0.025, 1.65, 12]} />
-              <meshStandardMaterial color="#F59E0B" metalness={0.85} roughness={0.2} />
+          {/* Video 2 Detail: Internal Amber/Gold Radial Structural C-Frame Ribs */}
+          {[-1.8, -0.9, 0.0, 0.9, 1.8].map((ribX, rIdx) => (
+            <mesh
+              key={rIdx}
+              position={[ribX, -1.78, 0]}
+              rotation={[0, Math.PI / 2, -Math.PI / 2 + 0.14]}
+            >
+              <torusGeometry args={[1.76 - Math.abs(ribX) * 0.04, 0.028, 12, 36, Math.PI - 0.28]} />
+              <meshStandardMaterial color="#F59E0B" metalness={0.85} roughness={0.22} />
             </mesh>
+          ))}
+          {/* Hydraulic Hold-Open Actuator Struts */}
+          {cowlingOpen && (
+            <>
+              <mesh position={[-0.95, -0.92, 1.02]} rotation={[0.52, 0, 0]}>
+                <cylinderGeometry args={[0.024, 0.024, 1.68, 12]} />
+                <meshStandardMaterial color="#F59E0B" metalness={0.88} roughness={0.18} />
+              </mesh>
+              <mesh position={[0.85, -0.92, 0.98]} rotation={[0.52, 0, 0]}>
+                <cylinderGeometry args={[0.024, 0.024, 1.62, 12]} />
+                <meshStandardMaterial color="#F59E0B" metalness={0.88} roughness={0.18} />
+              </mesh>
+            </>
           )}
         </group>
 
-        {/* HINGED STARBOARD CLAMSHELL COWLING DOOR (Pivots at top Y = +1.76) */}
-        <group position={[1.4, 1.76, 0]} ref={stbdCowlingRef}>
+        {/* HINGED STARBOARD CLAMSHELL COWLING DOOR (Pivots at top Y = +1.78) */}
+        <group position={[1.45, 1.78, 0]} ref={stbdCowlingRef}>
+          {/* Barrel-Curved Outer Nacelle Skin */}
           <mesh
-            position={[0, -1.76, 0]}
-            rotation={[0, 0, Math.PI / 2]}
+            geometry={cowlingOuterStbdGeo}
+            position={[0, -1.78, 0]}
           >
-            <cylinderGeometry
-              args={[1.78, 1.62, 4.8, 36, 1, true, Math.PI + 0.12, Math.PI - 0.24]}
-            />
             <meshStandardMaterial
               color="#E2E8F0"
               metalness={0.68}
-              roughness={0.26}
+              roughness={0.24}
               side={THREE.DoubleSide}
             />
           </mesh>
-          {/* Hydraulic Hold-Open Strut */}
-          {cowlingOpen && (
-            <mesh position={[-0.6, -0.95, -1.05]} rotation={[-0.5, 0, 0]}>
-              <cylinderGeometry args={[0.025, 0.025, 1.65, 12]} />
-              <meshStandardMaterial color="#F59E0B" metalness={0.85} roughness={0.2} />
+          {/* Interior Acoustic Composite Liner */}
+          <mesh
+            geometry={cowlingOuterStbdGeo}
+            position={[0, -1.78, 0]}
+            scale={[0.98, 0.985, 0.985]}
+          >
+            <meshStandardMaterial
+              color="#0F172A"
+              metalness={0.5}
+              roughness={0.45}
+              side={THREE.DoubleSide}
+            />
+          </mesh>
+          {/* Internal Amber/Gold Radial Structural C-Frame Ribs */}
+          {[-1.8, -0.9, 0.0, 0.9, 1.8].map((ribX, rIdx) => (
+            <mesh
+              key={rIdx}
+              position={[ribX, -1.78, 0]}
+              rotation={[0, Math.PI / 2, Math.PI / 2 + 0.14]}
+            >
+              <torusGeometry args={[1.76 - Math.abs(ribX) * 0.04, 0.028, 12, 36, Math.PI - 0.28]} />
+              <meshStandardMaterial color="#F59E0B" metalness={0.85} roughness={0.22} />
             </mesh>
+          ))}
+          {/* Hydraulic Hold-Open Actuator Struts */}
+          {cowlingOpen && (
+            <>
+              <mesh position={[-0.95, -0.92, -1.02]} rotation={[-0.52, 0, 0]}>
+                <cylinderGeometry args={[0.024, 0.024, 1.68, 12]} />
+                <meshStandardMaterial color="#F59E0B" metalness={0.88} roughness={0.18} />
+              </mesh>
+              <mesh position={[0.85, -0.92, -0.98]} rotation={[-0.52, 0, 0]}>
+                <cylinderGeometry args={[0.024, 0.024, 1.62, 12]} />
+                <meshStandardMaterial color="#F59E0B" metalness={0.88} roughness={0.18} />
+              </mesh>
+            </>
           )}
         </group>
       </group>
 
       {/* ================================================================= */}
-      {/* STAGE 3: 3-STAGE LP COMPRESSOR BOOSTER (SQUEEZE)                  */}
+      {/* STAGE 3: 3-STAGE LP COMPRESSOR BOOSTER (SQUEEZE — CYAN LP SHAFT)  */}
       {/* ================================================================= */}
       <group
         ref={(el) => (stageRefs.current.lp_compressor = el)}
@@ -684,20 +1055,23 @@ function TurbofanAssemblyScene({
           onSelectStage('lp_compressor');
         }}
       >
-        {[-0.28, 0.0, 0.28].map((dx, idx) => (
-          <group key={idx} position={[dx, 0, 0]}>
-            <BladedRotorDisk
-              radiusOuter={1.0 - idx * 0.05}
-              radiusInner={0.44}
-              bladeCount={28}
-              bladeChord={0.14}
-              bladeThickness={0.02}
-              twistRad={0.42}
-              bladeColor={selectedStageId === 'lp_compressor' ? '#38BDF8' : '#7DD3FC'}
-              hubColor="#0369A1"
-            />
-          </group>
-        ))}
+        {/* Rotating LP Booster Disks (Spin at N1 with Inner Cyan Shaft) */}
+        <group ref={lpBoosterRotorRef}>
+          {[-0.28, 0.0, 0.28].map((dx, idx) => (
+            <group key={idx} position={[dx, 0, 0]}>
+              <BladedRotorDisk
+                radiusOuter={1.0 - idx * 0.05}
+                radiusInner={0.44}
+                bladeCount={28}
+                bladeChord={0.14}
+                bladeThickness={0.02}
+                twistRad={0.42}
+                bladeColor={selectedStageId === 'lp_compressor' ? '#38BDF8' : '#7DD3FC'}
+                hubColor="#0369A1"
+              />
+            </group>
+          ))}
+        </group>
         {/* Semi-transparent LP Booster Case */}
         <mesh rotation={[0, 0, Math.PI / 2]}>
           <cylinderGeometry args={[1.04, 0.94, 0.85, 32, 1, true, 0, Math.PI]} />
@@ -723,7 +1097,7 @@ function TurbofanAssemblyScene({
           onSelectStage('hp_compressor');
         }}
       >
-        <group ref={hpSpoolRef}>
+        <group ref={hpCompressorRotorRef}>
           {[-0.64, -0.48, -0.32, -0.16, 0.0, 0.16, 0.32, 0.48, 0.64].map((dx, idx) => (
             <group key={idx} position={[dx, 0, 0]}>
               <BladedRotorDisk
@@ -783,16 +1157,16 @@ function TurbofanAssemblyScene({
             <meshBasicMaterial color="#FEF08A" transparent opacity={0.92} />
           </mesh>
         </group>
-        {/* 16 Fuel Atomizer Nozzles around perimeter */}
-        {Array.from({ length: 16 }).map((_, idx) => {
-          const a = (idx / 16) * Math.PI * 2;
+        {/* 20 Swirl Fuel Atomizer Nozzles around perimeter */}
+        {Array.from({ length: 20 }).map((_, idx) => {
+          const a = (idx / 20) * Math.PI * 2;
           return (
             <mesh
               key={idx}
               position={[-0.36, Math.cos(a) * 0.64, Math.sin(a) * 0.64]}
               rotation={[0, 0, Math.PI / 2]}
             >
-              <cylinderGeometry args={[0.03, 0.03, 0.24, 10]} />
+              <cylinderGeometry args={[0.028, 0.028, 0.24, 10]} />
               <meshStandardMaterial color="#FBBF24" metalness={0.9} roughness={0.18} />
             </mesh>
           );
@@ -810,20 +1184,23 @@ function TurbofanAssemblyScene({
           onSelectStage('hp_turbine');
         }}
       >
-        {[-0.18, 0.18].map((dx, idx) => (
-          <group key={idx} position={[dx, 0, 0]}>
-            <BladedRotorDisk
-              radiusOuter={0.78 + idx * 0.05}
-              radiusInner={0.42}
-              bladeCount={36}
-              bladeChord={0.15}
-              bladeThickness={0.022}
-              twistRad={-0.44}
-              bladeColor={selectedStageId === 'hp_turbine' ? '#FCA5A5' : '#F87171'}
-              hubColor="#B45309"
-            />
-          </group>
-        ))}
+        {/* Rotating HP Turbine Disks (Spin at N2 with Outer Amber Shaft) */}
+        <group ref={hpTurbineRotorRef}>
+          {[-0.18, 0.18].map((dx, idx) => (
+            <group key={idx} position={[dx, 0, 0]}>
+              <BladedRotorDisk
+                radiusOuter={0.78 + idx * 0.05}
+                radiusInner={0.42}
+                bladeCount={36}
+                bladeChord={0.15}
+                bladeThickness={0.022}
+                twistRad={-0.44}
+                bladeColor={selectedStageId === 'hp_turbine' ? '#FCA5A5' : '#F87171'}
+                hubColor="#B45309"
+              />
+            </group>
+          ))}
+        </group>
         {/* HP Turbine Thermal Shroud */}
         <mesh rotation={[0, 0, Math.PI / 2]}>
           <cylinderGeometry args={[0.88, 0.94, 0.68, 32, 1, true, 0, Math.PI]} />
@@ -847,20 +1224,23 @@ function TurbofanAssemblyScene({
           onSelectStage('lp_turbine');
         }}
       >
-        {[-0.52, -0.26, 0.0, 0.26, 0.52].map((dx, idx) => (
-          <group key={idx} position={[dx, 0, 0]}>
-            <BladedRotorDisk
-              radiusOuter={0.88 + idx * 0.075}
-              radiusInner={0.36}
-              bladeCount={32}
-              bladeChord={0.14}
-              bladeThickness={0.02}
-              twistRad={-0.4}
-              bladeColor={selectedStageId === 'lp_turbine' ? '#FDA4AF' : '#FB7185'}
-              hubColor="#0284C7"
-            />
-          </group>
-        ))}
+        {/* Rotating LP Turbine Disks (Spin at N1 with Inner Cyan Shaft) */}
+        <group ref={lpTurbineRotorRef}>
+          {[-0.52, -0.26, 0.0, 0.26, 0.52].map((dx, idx) => (
+            <group key={idx} position={[dx, 0, 0]}>
+              <BladedRotorDisk
+                radiusOuter={0.88 + idx * 0.075}
+                radiusInner={0.36}
+                bladeCount={32}
+                bladeChord={0.14}
+                bladeThickness={0.02}
+                twistRad={-0.4}
+                bladeColor={selectedStageId === 'lp_turbine' ? '#FDA4AF' : '#FB7185'}
+                hubColor="#0284C7"
+              />
+            </group>
+          ))}
+        </group>
         {/* LP Turbine Expanding Case */}
         <mesh rotation={[0, 0, Math.PI / 2]}>
           <cylinderGeometry args={[0.94, 1.24, 1.32, 36, 1, true, 0, Math.PI]} />
@@ -874,7 +1254,7 @@ function TurbofanAssemblyScene({
       </group>
 
       {/* ================================================================= */}
-      {/* STAGE 8: CONVERGENT EXHAUST NOZZLE & TAILCONE (BLOW)              */}
+      {/* STAGE 8: CONVERGENT EXHAUST NOZZLE & CHEVRON TAILCONE (BLOW)      */}
       {/* ================================================================= */}
       <group
         ref={(el) => (stageRefs.current.exhaust_nozzle = el)}
@@ -886,7 +1266,7 @@ function TurbofanAssemblyScene({
       >
         {/* Outer Convergent Core Exhaust Nozzle */}
         <mesh rotation={[0, 0, Math.PI / 2]} position={[-0.1, 0, 0]}>
-          <cylinderGeometry args={[0.92, 1.22, 1.15, 36, 1, true]} />
+          <cylinderGeometry args={[0.94, 1.24, 1.18, 36, 1, true]} />
           <meshStandardMaterial
             color={selectedStageId === 'exhaust_nozzle' ? '#A78BFA' : '#334155'}
             metalness={0.84}
@@ -894,9 +1274,21 @@ function TurbofanAssemblyScene({
             side={THREE.DoubleSide}
           />
         </mesh>
+        {/* 16 Acoustic Sawtooth Chevrons around Nozzle Exit Lip */}
+        {Array.from({ length: 16 }).map((_, idx) => {
+          const angle = (idx / 16) * Math.PI * 2;
+          return (
+            <group key={idx} rotation={[angle, 0, 0]}>
+              <mesh position={[0.56, 0.91, 0]} rotation={[0, 0, -Math.PI / 2 - 0.14]}>
+                <coneGeometry args={[0.09, 0.24, 3]} />
+                <meshStandardMaterial color="#475569" metalness={0.85} roughness={0.22} />
+              </mesh>
+            </group>
+          );
+        })}
         {/* Inner Acoustic Centerbody Tailcone */}
-        <mesh rotation={[0, 0, -Math.PI / 2]} position={[0.45, 0, 0]}>
-          <coneGeometry args={[0.56, 1.65, 32]} />
+        <mesh rotation={[0, 0, -Math.PI / 2]} position={[0.48, 0, 0]}>
+          <coneGeometry args={[0.56, 1.72, 32]} />
           <meshStandardMaterial color="#1E293B" metalness={0.82} roughness={0.28} />
         </mesh>
       </group>
@@ -1015,6 +1407,7 @@ export default function TurbofanExplorer3D({
   const [tourTime, setTourTime] = useState(0.0);
   const [playbackSpeed, setPlaybackSpeed] = useState(1.0);
   const controlsRef = useRef();
+  const tweenFramesRef = useRef(0);
 
   // Guided Tour Timer Loop (0.0s -> 28.0s)
   useEffect(() => {
@@ -1188,6 +1581,8 @@ export default function TurbofanExplorer3D({
                 setTourPlaying(false);
                 setExplodeFactor(0);
                 setCowlingOpen(true);
+                setSelectedStageId('fan');
+                tweenFramesRef.current = 42;
               }}
               className="btn btn-secondary btn-sm"
               style={{ fontSize: '11px' }}
@@ -1262,7 +1657,7 @@ export default function TurbofanExplorer3D({
       {/* THREE.JS 3D CANVAS                                                */}
       {/* ================================================================= */}
       <Canvas shadows dpr={[1, 2]}>
-        <PerspectiveCamera makeDefault position={[-4.5, 2.0, 8.2]} fov={40} />
+        <PerspectiveCamera makeDefault position={[-4.8, 2.0, 8.2]} fov={40} />
         <TurbofanCameraRig
           followCamera={followCamera}
           tourPlaying={tourPlaying}
@@ -1270,6 +1665,7 @@ export default function TurbofanExplorer3D({
           selectedStageId={selectedStageId}
           explodeFactor={explodeFactor}
           controlsRef={controlsRef}
+          tweenFramesRef={tweenFramesRef}
         />
         <OrbitControls
           ref={controlsRef}
@@ -1277,6 +1673,9 @@ export default function TurbofanExplorer3D({
           dampingFactor={0.07}
           maxDistance={22}
           minDistance={2.8}
+          onStart={() => {
+            tweenFramesRef.current = 0;
+          }}
         />
 
         <ambientLight intensity={0.85} />
@@ -1293,7 +1692,6 @@ export default function TurbofanExplorer3D({
           cowlingOpen={cowlingOpen}
           explodeFactor={explodeFactor}
           throttlePct={throttlePct}
-          bypassRatio={bypassRatio}
           showLabels
         />
 
@@ -1450,4 +1848,3 @@ export default function TurbofanExplorer3D({
     </div>
   );
 }
-

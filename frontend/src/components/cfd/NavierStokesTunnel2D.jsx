@@ -47,6 +47,22 @@ function buildObstacleLocalPoly(obs, m = 2, p = 4, t = 12) {
       { x: 0.5, y: 0.34 },
     ];
   }
+  if (obs.type === 'square') {
+    return [
+      { x: -0.34, y: -0.34 },
+      { x: 0.34, y: -0.34 },
+      { x: 0.34, y: 0.34 },
+      { x: -0.34, y: 0.34 },
+    ];
+  }
+  if (obs.type === 'plate') {
+    return [
+      { x: -0.5, y: -0.045 },
+      { x: 0.5, y: -0.045 },
+      { x: 0.5, y: 0.045 },
+      { x: -0.5, y: 0.045 },
+    ];
+  }
   if (obs.type === 'cylinder') {
     const pts = [];
     for (let k = 0; k < 28; k++) {
@@ -73,6 +89,7 @@ export const VISUALIZATION_MODES = [
   { id: 'velocity_jet', label: 'Velocity (Jet)' },
   { id: 'vorticity_curl', label: 'Vorticity (Curl)' },
   { id: 'pressure_field', label: 'Pressure (Field)' },
+  { id: 'schlieren', label: 'Schlieren |∇ω|' },
   { id: 'particles_only', label: 'Particles Only' },
 ];
 
@@ -99,6 +116,8 @@ export default function NavierStokesTunnel2D({
   const [vorticityStrength, setVorticityStrength] = useState(2.6);
   const [showVectors, setShowVectors] = useState(true);
   const [showStreamParticles, setShowStreamParticles] = useState(true);
+  const [showCpOverlay, setShowCpOverlay] = useState(false);
+  const [showBoundaryLayer, setShowBoundaryLayer] = useState(false);
   const [paused, setPaused] = useState(false);
 
   // Multi-obstacle list in grid coordinates (x in [0..NX], y in [0..NY])
@@ -499,6 +518,20 @@ export default function NavierStokesTunnel2D({
             pixels[pIdx + 1] = Math.round(14 + lo * 165 + hi * 55);
             pixels[pIdx + 2] = Math.round(22 + lo * 245);
             pixels[pIdx + 3] = 255;
+          } else if (visMode === 'schlieren') {
+            // Optical Schlieren: magnitude of spatial gradient of vorticity & pressure
+            const im = Math.max(0, i - 1);
+            const ip = Math.min(NX - 1, i + 1);
+            const jm = Math.max(0, j - 1);
+            const jp = Math.min(NY - 1, j + 1);
+            const gx = (curl[idx(ip, j)] - curl[idx(im, j)]) * 2.2 + (pr[idx(ip, j)] - pr[idx(im, j)]) * 1.8;
+            const gy = (curl[idx(i, jp)] - curl[idx(i, jm)]) * 2.2 + (pr[idx(i, jp)] - pr[idx(i, jm)]) * 1.8;
+            const grad = Math.min(1, Math.hypot(gx, gy) * 3.6);
+            const lum = Math.round(14 + Math.pow(grad, 0.72) * 238);
+            pixels[pIdx] = Math.round(lum * 0.88);
+            pixels[pIdx + 1] = Math.round(lum * 0.96);
+            pixels[pIdx + 2] = Math.min(255, Math.round(lum * 1.08));
+            pixels[pIdx + 3] = 255;
           } else {
             // particles_only dark background
             pixels[pIdx] = 7;
@@ -591,6 +624,51 @@ export default function NavierStokesTunnel2D({
           ctx.lineWidth = 1.5;
           ctx.stroke();
         }
+
+        // Optional Boundary Layer & Stagnation Point Envelope (Video 3 Feature)
+        if (showBoundaryLayer && obs.isPrimary) {
+          const halfC = obs.chord * scaleX * 0.5;
+          const blThick = Math.max(6, Math.abs(obs.angleDeg) * 1.45 + 7);
+          ctx.beginPath();
+          ctx.moveTo(-halfC, 0);
+          ctx.quadraticCurveTo(0, -blThick * 1.6, halfC * 1.12, -blThick * 2.25);
+          ctx.strokeStyle = 'rgba(56, 189, 248, 0.85)';
+          ctx.lineWidth = 1.6;
+          ctx.setLineDash([3, 3]);
+          ctx.stroke();
+          ctx.setLineDash([]);
+
+          // Leading-Edge Stagnation Point Marker (Red-Amber Dot)
+          const stagY = Math.sin((obs.angleDeg * Math.PI) / 180) * 10;
+          ctx.beginPath();
+          ctx.arc(-halfC + 2, stagY, 4.5, 0, Math.PI * 2);
+          ctx.fillStyle = '#EF4444';
+          ctx.fill();
+          ctx.strokeStyle = '#FEF2F2';
+          ctx.lineWidth = 1.2;
+          ctx.stroke();
+        }
+
+        // Optional Live Cp Surface Pressure Distribution Curve above Airfoil
+        if (showCpOverlay && obs.isPrimary) {
+          const halfC = obs.chord * scaleX * 0.5;
+          ctx.beginPath();
+          for (let sIdx = 0; sIdx <= 20; sIdx++) {
+            const frac = sIdx / 20;
+            const xLoc = -halfC + frac * (halfC * 2);
+            const suction =
+              Math.pow(1 - frac, 0.65) *
+              Math.sin(Math.pow(frac, 0.35) * Math.PI) *
+              (28 + obs.angleDeg * 2.6);
+            const yLoc = -14 - suction;
+            if (sIdx === 0) ctx.moveTo(xLoc, yLoc);
+            else ctx.lineTo(xLoc, yLoc);
+          }
+          ctx.strokeStyle = '#38BDF8';
+          ctx.lineWidth = 2.0;
+          ctx.stroke();
+        }
+
         ctx.restore();
 
         // Draw Live Lift (L) and Drag (D) Force Vectors + Angle Badge at Center
@@ -653,6 +731,8 @@ export default function NavierStokesTunnel2D({
     vorticityStrength,
     showVectors,
     showStreamParticles,
+    showCpOverlay,
+    showBoundaryLayer,
     paused,
     velocityMs,
     selectedObsId,
@@ -749,12 +829,16 @@ export default function NavierStokesTunnel2D({
           ? 'Delta Wedge'
           : type === 'cylinder'
             ? 'Bluff Cylinder'
-            : 'Secondary Airfoil',
+            : type === 'square'
+              ? 'Square Bluff Body'
+              : type === 'plate'
+                ? 'Flat Plate'
+                : 'Secondary Airfoil',
       isPrimary: false,
       cx: NX * 0.62,
       cy: NY * 0.5 + (obstacles.length % 2 === 0 ? -16 : 16),
-      chord: type === 'cylinder' ? 28 : 38,
-      angleDeg: 0,
+      chord: type === 'cylinder' || type === 'square' ? 28 : 38,
+      angleDeg: type === 'plate' ? 8 : 0,
     };
     setObstacles((prev) => [...prev, newObs]);
     setSelectedObsId(id);
@@ -778,6 +862,9 @@ export default function NavierStokesTunnel2D({
     }
   };
 
+  const isTurbulentWake = Math.abs(aoa) > 11.5 || velocityMs > 95 || obstacles.length > 1;
+  const ldRatio = cd > 0.0001 ? (cl / cd).toFixed(1) : '0.0';
+
   return (
     <div
       style={{
@@ -791,7 +878,7 @@ export default function NavierStokesTunnel2D({
       }}
     >
       {/* ================================================================= */}
-      {/* TOP CFD TOOLBAR: 5 VISUALIZATION MODES + OBSTACLE SPAWNER         */}
+      {/* TOP CFD TOOLBAR: 6 VISUALIZATION MODES + OBSTACLE SPAWNER         */}
       {/* ================================================================= */}
       <div
         style={{
@@ -829,6 +916,22 @@ export default function NavierStokesTunnel2D({
           </button>
           <button
             type="button"
+            onClick={() => addObstacle('cylinder')}
+            className="btn btn-secondary btn-sm"
+            style={{ fontSize: '11px' }}
+          >
+            + Cylinder
+          </button>
+          <button
+            type="button"
+            onClick={() => addObstacle('square')}
+            className="btn btn-secondary btn-sm"
+            style={{ fontSize: '11px' }}
+          >
+            + Square
+          </button>
+          <button
+            type="button"
             onClick={() => addObstacle('triangle')}
             className="btn btn-secondary btn-sm"
             style={{ fontSize: '11px' }}
@@ -837,11 +940,11 @@ export default function NavierStokesTunnel2D({
           </button>
           <button
             type="button"
-            onClick={() => addObstacle('cylinder')}
+            onClick={() => addObstacle('plate')}
             className="btn btn-secondary btn-sm"
             style={{ fontSize: '11px' }}
           >
-            + Cylinder
+            + Flat Plate
           </button>
           {selectedObsId !== 'primary-airfoil' && (
             <button
@@ -912,11 +1015,24 @@ export default function NavierStokesTunnel2D({
             display: 'flex',
             gap: '12px',
             flexWrap: 'wrap',
+            alignItems: 'center',
           }}
         >
           <span>GRID: {NX}×{NY} EULERIAN MAC</span>
           <span style={{ color: 'var(--accent-primary)', fontWeight: 700 }}>V∞: {velocityMs} m/s</span>
           <span style={{ color: 'var(--status-success)', fontWeight: 700 }}>α: {aoa.toFixed(1)}°</span>
+          <span style={{ color: 'var(--accent-gold)', fontWeight: 700 }}>L/D: {ldRatio}</span>
+          <span
+            style={{
+              padding: '1px 6px',
+              borderRadius: '999px',
+              background: isTurbulentWake ? 'rgba(245, 158, 11, 0.2)' : 'rgba(16, 185, 129, 0.2)',
+              color: isTurbulentWake ? 'var(--status-warn)' : 'var(--status-success)',
+              fontWeight: 700,
+            }}
+          >
+            {isTurbulentWake ? 'WAKE: VORTEX SHEDDING' : 'FLOW: LAMINAR ATTACHED'}
+          </span>
           <span style={{ color: 'var(--glass-muted)' }}>DRAG BODY OR GREEN RING TO ROTATE</span>
         </div>
       </div>
@@ -986,7 +1102,7 @@ export default function NavierStokesTunnel2D({
           )}
         </div>
 
-        <div style={{ display: 'flex', gap: '8px' }}>
+        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
           <button
             type="button"
             onClick={() => setShowVectors((v) => !v)}
@@ -1004,6 +1120,22 @@ export default function NavierStokesTunnel2D({
             style={{ fontSize: '11px' }}
           >
             Tracer Streaks: {showStreamParticles ? 'ON' : 'OFF'}
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowCpOverlay((v) => !v)}
+            className={`btn btn-sm ${showCpOverlay ? 'btn-primary' : 'btn-secondary'}`}
+            style={{ fontSize: '11px' }}
+          >
+            Cp Envelope: {showCpOverlay ? 'ON' : 'OFF'}
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowBoundaryLayer((v) => !v)}
+            className={`btn btn-sm ${showBoundaryLayer ? 'btn-primary' : 'btn-secondary'}`}
+            style={{ fontSize: '11px' }}
+          >
+            Boundary Layer: {showBoundaryLayer ? 'ON' : 'OFF'}
           </button>
         </div>
       </div>
