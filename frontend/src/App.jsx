@@ -1,4 +1,4 @@
-import React, { Suspense, lazy } from 'react';
+import React, { Suspense, lazy, useCallback } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AppProvider } from './context/AppContext';
 import AppShell from './layouts/AppShell';
@@ -7,32 +7,67 @@ import Login from './pages/Login';
 import EventsPage from './pages/EventsPage';
 import Admin from './pages/Admin';
 import { PrivacyPolicy, TermsOfService } from './pages/LegalPages';
+import { preloadF16Assets } from './components/three/F16FalconAssembly';
+import { preloadTurbofanAssets } from './components/three/TurbofanExplorer3D';
+import InitialPreloader from './components/brand/InitialPreloader';
 
-const Explorer = lazy(() => import('./pages/Explorer'));
-const CockpitLab = lazy(() => import('./pages/CockpitLab'));
+const loadExplorer = () => import('./pages/Explorer');
+const loadCockpitLab = () => import('./pages/CockpitLab');
+
+const Explorer = lazy(loadExplorer);
+const CockpitLab = lazy(loadCockpitLab);
+
+export function preloadRoute(path) {
+    if (!path) return;
+    if (path.startsWith('/explore')) {
+        loadExplorer();
+        preloadF16Assets();
+        preloadTurbofanAssets();
+    } else if (path.startsWith('/lab')) {
+        loadCockpitLab();
+    }
+}
 
 function RouteLoadingFallback() {
     return (
         <div
             style={{
-                height: 'calc(100vh - 56px)',
+                height: 'calc(100vh - 62px)',
                 display: 'flex',
+                flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
+                gap: '10px',
                 background: 'var(--bg-canvas)',
                 color: 'var(--text-secondary)',
                 fontSize: '0.875rem',
             }}
         >
-            Loading 3D aerospace workspace...
+            <div
+                className="mono"
+                style={{
+                    fontSize: '11px',
+                    letterSpacing: '0.16em',
+                    color: 'var(--accent-primary)',
+                    fontWeight: 700,
+                }}
+            >
+                VORTEX-GEN · PRELOADING 3D TELEMETRY
+            </div>
+            <div>Preparing interactive aerospace workspace...</div>
         </div>
     );
 }
 
 export default function App() {
+    const handlePreloadRoutes = useCallback(async () => {
+        await Promise.allSettled([loadExplorer(), loadCockpitLab()]);
+    }, []);
+
     return (
         <AppProvider>
             <BrowserRouter>
+                <InitialPreloader onPreloadRoutes={handlePreloadRoutes} />
                 <AppShell>
                     <Suspense fallback={<RouteLoadingFallback />}>
                         <Routes>
@@ -66,4 +101,3 @@ export default function App() {
         </AppProvider>
     );
 }
-

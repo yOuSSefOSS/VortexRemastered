@@ -29,6 +29,8 @@ export const TURBOFAN_STAGES = [
     pressureRatio: '1.6 : 1',
     summary:
       '22 wide-chord swept titanium fan blades accelerate a massive column of ambient air into the nacelle inlet.',
+    kidExplanation:
+      'STEP 1 — SUCK: This giant spinning front fan acts like a super-powerful vacuum cleaner! It pulls in tons of cool air. Most of that air rushes around the outside of the engine to push the airplane forward.',
     detail:
       'Driven by the inner cyan Low-Pressure (LP) shaft, the front fan splits incoming air into the outer cold bypass stream (80–90% of mass flow) and the inner engine core. In high-bypass turbofans, the fan alone produces over 75% of total net thrust.',
   },
@@ -47,6 +49,8 @@ export const TURBOFAN_STAGES = [
     pressureRatio: '1.58 : 1',
     summary:
       'Annular cold-stream duct and Outlet Guide Vanes (OGVs) straighten swirl from the fan and route bypass air around the core.',
+    kidExplanation:
+      'STEP 1 — SUCK: This smooth outer tunnel guides the cool air from the big front fan straight out the back. Moving a huge river of cool air makes the jet quieter and saves lots of fuel!',
     detail:
       'By accelerating a huge mass of air to a moderate velocity rather than a small mass to extreme velocity, the bypass duct drastically increases propulsive efficiency and reduces jet noise and TSFC.',
   },
@@ -65,6 +69,8 @@ export const TURBOFAN_STAGES = [
     pressureRatio: '3.8 : 1',
     summary:
       '3-stage axial low-pressure booster compresses core airflow before it enters the high-pressure spool.',
+    kidExplanation:
+      'STEP 2 — SQUEEZE: These three spinning rings of blades start squeezing the air into a tighter and tighter space, warming it up before it enters the main compressor.',
     detail:
       'Rotating at the same speed as the front fan on the inner cyan LP shaft, alternating rows of rotor blades and stationary stator vanes diffuse the air, trading kinetic energy for a steady rise in static pressure.',
   },
@@ -83,6 +89,8 @@ export const TURBOFAN_STAGES = [
     pressureRatio: '38.0 : 1',
     summary:
       '9-stage high-pressure axial compressor driven by the concentric outer amber HP shaft squeezes air to nearly 40 atmospheres.',
+    kidExplanation:
+      'STEP 2 — SQUEEZE: Nine rows of fast-spinning blades pack the air 38 times tighter than the air in your room! Squeezing air that hard makes it super hot even before any fuel is burned.',
     detail:
       'Notice how blade height shrinks progressively from stage 1 to stage 9 as air density increases. By the exit guide vanes, air temperature reaches ~860 K from mechanical compression alone prior to fuel ignition.',
   },
@@ -101,6 +109,8 @@ export const TURBOFAN_STAGES = [
     pressureRatio: '36.5 : 1 (Isobaric)',
     summary:
       'High-pressure air mixes with atomized Jet-A1 kerosene and burns continuously at ~1,720 K in an annular flame ring.',
+    kidExplanation:
+      'STEP 3 — BANG: Inside this glowing ring, 20 fuel nozzles spray jet fuel into the squeezed air and light a continuous ring of fire hotter than volcanic lava!',
     detail:
       'Swirl vanes anchor a recirculation vortex so the flame does not blow out. Cooling air film-bleeds through thousands of laser-drilled liner holes to prevent the nickel-superalloy walls from melting.',
   },
@@ -119,6 +129,8 @@ export const TURBOFAN_STAGES = [
     pressureRatio: '11.2 : 1',
     summary:
       '2-stage single-crystal high-pressure turbine extracts intense thermal energy from the combustor exit stream to drive the HP compressor.',
+    kidExplanation:
+      'STEP 4 — BLOW: The blasting hot gas hits these two super-strong windmills first! As they spin, they turn the outer gold shaft to power the High-Pressure Compressor up front.',
     detail:
       'Connected directly to the hollow outer amber HP shaft, these blades operate above the melting point of their metal alloy, surviving via internal serpentine cooling passages and thermal barrier coatings.',
   },
@@ -137,6 +149,8 @@ export const TURBOFAN_STAGES = [
     pressureRatio: '2.1 : 1',
     summary:
       '5-stage expanding low-pressure turbine extracts remaining gas energy to torque the inner cyan LP shaft and spin the front Titanium Fan.',
+    kidExplanation:
+      'STEP 4 — BLOW: Next, the rushing gas spins these five bigger turbine wheels! They are connected to the inner blue shaft that runs all the way to the front to spin the giant Titanium Fan.',
     detail:
       'As gas pressure drops and specific volume expands rapidly across the 5 stages, blade span increases outward toward the rear casing.',
   },
@@ -155,6 +169,8 @@ export const TURBOFAN_STAGES = [
     pressureRatio: '1.0 : 1 (Ambient)',
     summary:
       'Convergent exhaust nozzle and centerbody tailcone accelerate core gas into a high-momentum propulsive jet.',
+    kidExplanation:
+      'STEP 4 — BLOW: Just like putting your thumb over a garden hose makes the water shoot out faster, this narrowed tailpipe blasts the exhaust out the back to push the airplane forward!',
     detail:
       'Sawtooth acoustic chevrons along the nozzle lip promote gentle shear-layer mixing between the hot core jet, the cold bypass stream, and ambient freestream air to reduce low-frequency cabin rumble.',
   },
@@ -323,8 +339,314 @@ function makeSupercriticalAirfoilRing({
   return ring;
 }
 
+const ROTOR_BLADE_RING_CACHE = new Map();
+
+function getMergedRotorBladesGeo({
+  radiusOuter,
+  radiusInner,
+  bladeCount,
+  bladeChord,
+  bladeThickness,
+  twistRad,
+}) {
+  const key = `${radiusOuter.toFixed(3)}_${radiusInner.toFixed(3)}_${bladeCount}_${bladeChord.toFixed(3)}_${bladeThickness.toFixed(3)}_${twistRad.toFixed(3)}`;
+  if (ROTOR_BLADE_RING_CACHE.has(key)) {
+    return ROTOR_BLADE_RING_CACHE.get(key);
+  }
+
+  const bladeLen = Math.max(0.12, radiusOuter - radiusInner);
+  const stations = [];
+  const spanSteps = 5;
+  const segs = 12;
+  for (let s = 0; s <= spanSteps; s++) {
+    const frac = s / spanSteps;
+    const r = radiusInner * 0.96 + frac * (bladeLen * 1.04);
+    const localChord = bladeChord * (0.88 + 0.24 * Math.sin(frac * Math.PI * 0.75));
+    const localTwist = twistRad * (0.65 + 0.65 * frac);
+    const sweepX = Math.sin(frac * Math.PI) * bladeChord * 0.18;
+    const cosA = Math.cos(localTwist);
+    const sinA = Math.sin(localTwist);
+
+    const ring = [];
+    for (let j = 0; j < segs; j++) {
+      const theta = (j / segs) * Math.PI * 2;
+      const xc = 0.5 * (1 - Math.cos(theta)) - 0.5;
+      const yt =
+        bladeThickness *
+        (1 - 0.35 * frac) *
+        Math.sin(theta) *
+        (1 - 0.25 * (xc + 0.5));
+      const camber = bladeThickness * 0.55 * (0.25 - xc * xc);
+      const bx = xc * localChord;
+      const bz = yt + camber;
+      const rx = bx * cosA - bz * sinA + sweepX;
+      const rz = bx * sinA + bz * cosA;
+      ring.push([rx, r, rz]);
+    }
+    stations.push(ring);
+  }
+
+  const singleBladeGeo = buildLoftedWingGeo(stations, segs);
+  const srcPos = singleBladeGeo.attributes.position.array;
+  const srcNorm = singleBladeGeo.attributes.normal.array;
+  const srcIndex = singleBladeGeo.index.array;
+  const vertCount = srcPos.length / 3;
+
+  const mergedPositions = new Float32Array(srcPos.length * bladeCount);
+  const mergedNormals = new Float32Array(srcNorm.length * bladeCount);
+  const mergedIndices = new Uint32Array(srcIndex.length * bladeCount);
+
+  for (let b = 0; b < bladeCount; b++) {
+    const angle = (b / bladeCount) * Math.PI * 2;
+    const cosB = Math.cos(angle);
+    const sinB = Math.sin(angle);
+    const vOffset = b * srcPos.length;
+    const idxOffset = b * srcIndex.length;
+    const vertBase = b * vertCount;
+
+    for (let v = 0; v < vertCount; v++) {
+      const px = srcPos[v * 3];
+      const py = srcPos[v * 3 + 1];
+      const pz = srcPos[v * 3 + 2];
+      mergedPositions[vOffset + v * 3] = px;
+      mergedPositions[vOffset + v * 3 + 1] = py * cosB - pz * sinB;
+      mergedPositions[vOffset + v * 3 + 2] = py * sinB + pz * cosB;
+
+      const nx = srcNorm[v * 3];
+      const ny = srcNorm[v * 3 + 1];
+      const nz = srcNorm[v * 3 + 2];
+      mergedNormals[vOffset + v * 3] = nx;
+      mergedNormals[vOffset + v * 3 + 1] = ny * cosB - nz * sinB;
+      mergedNormals[vOffset + v * 3 + 2] = ny * sinB + nz * cosB;
+    }
+
+    for (let k = 0; k < srcIndex.length; k++) {
+      mergedIndices[idxOffset + k] = srcIndex[k] + vertBase;
+    }
+  }
+
+  singleBladeGeo.dispose();
+
+  const mergedGeo = new THREE.BufferGeometry();
+  mergedGeo.setAttribute('position', new THREE.BufferAttribute(mergedPositions, 3));
+  mergedGeo.setAttribute('normal', new THREE.BufferAttribute(mergedNormals, 3));
+  mergedGeo.setIndex(new THREE.BufferAttribute(mergedIndices, 1));
+  ROTOR_BLADE_RING_CACHE.set(key, mergedGeo);
+  return mergedGeo;
+}
+
+let CACHED_TURBOFAN_STRUCT_GEOS = null;
+
+function getCachedTurbofanStructGeos() {
+  if (CACHED_TURBOFAN_STRUCT_GEOS) return CACHED_TURBOFAN_STRUCT_GEOS;
+
+  const wingStations = [
+    makeSupercriticalAirfoilRing({
+      xLead: -3.2,
+      yOffset: -0.15,
+      zSpan: -5.8,
+      chord: 7.4,
+      thicknessRatio: 0.125,
+      camberRatio: 0.028,
+      twistRad: 0.03,
+    }),
+    makeSupercriticalAirfoilRing({
+      xLead: -2.45,
+      yOffset: 0.02,
+      zSpan: -2.6,
+      chord: 6.2,
+      thicknessRatio: 0.115,
+      camberRatio: 0.025,
+      twistRad: 0.02,
+    }),
+    makeSupercriticalAirfoilRing({
+      xLead: -1.9,
+      yOffset: 0.16,
+      zSpan: 0.0,
+      chord: 5.3,
+      thicknessRatio: 0.108,
+      camberRatio: 0.022,
+      twistRad: 0.01,
+    }),
+    makeSupercriticalAirfoilRing({
+      xLead: -1.15,
+      yOffset: 0.34,
+      zSpan: 3.1,
+      chord: 4.1,
+      thicknessRatio: 0.098,
+      camberRatio: 0.018,
+      twistRad: -0.01,
+    }),
+    makeSupercriticalAirfoilRing({
+      xLead: -0.45,
+      yOffset: 0.52,
+      zSpan: 5.2,
+      chord: 2.75,
+      thicknessRatio: 0.088,
+      camberRatio: 0.014,
+      twistRad: -0.02,
+    }),
+    makeSupercriticalAirfoilRing({
+      xLead: 0.25,
+      yOffset: 1.15,
+      zSpan: 5.85,
+      chord: 1.55,
+      thicknessRatio: 0.08,
+      camberRatio: 0.01,
+      twistRad: -0.03,
+    }),
+  ];
+  const wGeo = buildLoftedWingGeo(wingStations, 36);
+
+  const pylonStations = [
+    makeSupercriticalAirfoilRing({
+      xLead: -1.85,
+      yOffset: 0.18,
+      zSpan: 0,
+      chord: 5.2,
+      thicknessRatio: 0.085,
+      camberRatio: 0,
+      twistRad: 0,
+    }).map(([x, z]) => [x, 0.22, z]),
+    makeSupercriticalAirfoilRing({
+      xLead: -2.45,
+      yOffset: 0,
+      zSpan: 0,
+      chord: 5.6,
+      thicknessRatio: 0.078,
+      camberRatio: 0,
+      twistRad: 0,
+    }).map(([x, z]) => [x, -0.25, z]),
+    makeSupercriticalAirfoilRing({
+      xLead: -2.95,
+      yOffset: 0,
+      zSpan: 0,
+      chord: 5.8,
+      thicknessRatio: 0.072,
+      camberRatio: 0,
+      twistRad: 0,
+    }).map(([x, z]) => [x, -0.72, z]),
+    makeSupercriticalAirfoilRing({
+      xLead: -2.65,
+      yOffset: 0,
+      zSpan: 0,
+      chord: 5.1,
+      thicknessRatio: 0.068,
+      camberRatio: 0,
+      twistRad: 0,
+    }).map(([x, z]) => [x, -1.12, z]),
+  ];
+  const pGeo = buildLoftedWingGeo(pylonStations, 36);
+
+  const canoePts = [];
+  for (let i = 0; i <= 20; i++) {
+    const u = i / 20;
+    const r = Math.sin(u * Math.PI) * (1 - 0.35 * u) * 0.21;
+    const y = (u - 0.5) * 2.4;
+    canoePts.push(new THREE.Vector2(Math.max(0.002, r), y));
+  }
+  const cGeo = new THREE.LatheGeometry(canoePts, 24);
+  cGeo.rotateZ(Math.PI / 2);
+
+  const cowlPts = [];
+  const cowlSteps = 28;
+  for (let i = 0; i <= cowlSteps; i++) {
+    const u = i / cowlSteps;
+    const barrelR =
+      1.78 +
+      0.12 * Math.sin(u * Math.PI) -
+      0.24 * Math.pow(u, 1.45);
+    const axialY = (0.5 - u) * 4.95;
+    cowlPts.push(new THREE.Vector2(barrelR, axialY));
+  }
+  const portShell = new THREE.LatheGeometry(cowlPts, 40, 0.1, Math.PI - 0.2);
+  portShell.rotateZ(Math.PI / 2);
+
+  const stbdShell = new THREE.LatheGeometry(cowlPts, 40, Math.PI + 0.1, Math.PI - 0.2);
+  stbdShell.rotateZ(Math.PI / 2);
+
+  CACHED_TURBOFAN_STRUCT_GEOS = {
+    wingGeo: wGeo,
+    pylonGeo: pGeo,
+    canoeGeo: cGeo,
+    cowlingOuterPortGeo: portShell,
+    cowlingOuterStbdGeo: stbdShell,
+  };
+  return CACHED_TURBOFAN_STRUCT_GEOS;
+}
+
 /**
- * Helper to create a multi-blade axial rotor disk with cambered twisted airfoils
+ * Pre-warms and caches all 3D Turbofan structural meshes and merged rotor blade rings
+ * so switching to the Turbofan Explorer is 100% instantaneous with zero frame drop.
+ */
+export function preloadTurbofanAssets() {
+  getCachedTurbofanStructGeos();
+  // Stage 1: Titanium Fan
+  getMergedRotorBladesGeo({
+    radiusOuter: 1.68,
+    radiusInner: 0.46,
+    bladeCount: 22,
+    bladeChord: 0.34,
+    bladeThickness: 0.036,
+    twistRad: 0.52,
+  });
+  // Stage 2: OGV Stator Ring
+  getMergedRotorBladesGeo({
+    radiusOuter: 1.68,
+    radiusInner: 1.08,
+    bladeCount: 34,
+    bladeChord: 0.22,
+    bladeThickness: 0.02,
+    twistRad: -0.35,
+  });
+  // Stage 3: 3-stage LP Booster
+  for (let idx = 0; idx < 3; idx++) {
+    getMergedRotorBladesGeo({
+      radiusOuter: 1.0 - idx * 0.05,
+      radiusInner: 0.44,
+      bladeCount: 28,
+      bladeChord: 0.14,
+      bladeThickness: 0.02,
+      twistRad: 0.42,
+    });
+  }
+  // Stage 4: 9-stage HP Compressor
+  for (let idx = 0; idx < 9; idx++) {
+    getMergedRotorBladesGeo({
+      radiusOuter: 0.88 - idx * 0.026,
+      radiusInner: 0.42 + idx * 0.012,
+      bladeCount: 34,
+      bladeChord: 0.095,
+      bladeThickness: 0.016,
+      twistRad: 0.38,
+    });
+  }
+  // Stage 6: 2-stage HP Turbine
+  for (let idx = 0; idx < 2; idx++) {
+    getMergedRotorBladesGeo({
+      radiusOuter: 0.78 + idx * 0.05,
+      radiusInner: 0.42,
+      bladeCount: 36,
+      bladeChord: 0.15,
+      bladeThickness: 0.022,
+      twistRad: -0.44,
+    });
+  }
+  // Stage 7: 5-stage LP Turbine
+  for (let idx = 0; idx < 5; idx++) {
+    getMergedRotorBladesGeo({
+      radiusOuter: 0.88 + idx * 0.075,
+      radiusInner: 0.36,
+      bladeCount: 32,
+      bladeChord: 0.14,
+      bladeThickness: 0.02,
+      twistRad: -0.4,
+    });
+  }
+}
+
+/**
+ * Helper to create a multi-blade axial rotor disk in a SINGLE merged draw call!
  */
 function BladedRotorDisk({
   radiusOuter = 1.2,
@@ -336,63 +658,30 @@ function BladedRotorDisk({
   bladeColor = '#CBD5E1',
   hubColor = '#475569',
 }) {
-  const blades = useMemo(() => {
-    const arr = [];
-    for (let i = 0; i < bladeCount; i++) {
-      arr.push((i / bladeCount) * Math.PI * 2);
-    }
-    return arr;
-  }, [bladeCount]);
-
-  const bladeLen = Math.max(0.12, radiusOuter - radiusInner);
-
-  const bladeGeo = useMemo(() => {
-    const stations = [];
-    const spanSteps = 6;
-    const segs = 16;
-    for (let s = 0; s <= spanSteps; s++) {
-      const frac = s / spanSteps;
-      const r = radiusInner * 0.96 + frac * (bladeLen * 1.04);
-      const localChord = bladeChord * (0.88 + 0.24 * Math.sin(frac * Math.PI * 0.75));
-      const localTwist = twistRad * (0.65 + 0.65 * frac);
-      const sweepX = Math.sin(frac * Math.PI) * bladeChord * 0.18;
-      const cosA = Math.cos(localTwist);
-      const sinA = Math.sin(localTwist);
-
-      const ring = [];
-      for (let j = 0; j < segs; j++) {
-        const theta = (j / segs) * Math.PI * 2;
-        const xc = 0.5 * (1 - Math.cos(theta)) - 0.5; // -0.5 to +0.5
-        const yt =
-          bladeThickness *
-          (1 - 0.35 * frac) *
-          Math.sin(theta) *
-          (1 - 0.25 * (xc + 0.5));
-        const camber = bladeThickness * 0.55 * (0.25 - xc * xc);
-        const bx = xc * localChord;
-        const bz = yt + camber;
-        const rx = bx * cosA - bz * sinA + sweepX;
-        const rz = bx * sinA + bz * cosA;
-        ring.push([rx, r, rz]);
-      }
-      stations.push(ring);
-    }
-    return buildLoftedWingGeo(stations, segs);
-  }, [radiusInner, bladeLen, bladeChord, bladeThickness, twistRad]);
+  const mergedBladesGeo = useMemo(
+    () =>
+      getMergedRotorBladesGeo({
+        radiusOuter,
+        radiusInner,
+        bladeCount,
+        bladeChord,
+        bladeThickness,
+        twistRad,
+      }),
+    [radiusOuter, radiusInner, bladeCount, bladeChord, bladeThickness, twistRad]
+  );
 
   return (
     <group>
       {/* Rotor Hub Ring */}
       <mesh rotation={[0, 0, Math.PI / 2]}>
-        <cylinderGeometry args={[radiusInner, radiusInner, bladeChord * 1.18, 32]} />
+        <cylinderGeometry args={[radiusInner, radiusInner, bladeChord * 1.18, 28]} />
         <meshStandardMaterial color={hubColor} metalness={0.84} roughness={0.25} />
       </mesh>
-      {/* Individual Twisted Cambered Airfoil Blades */}
-      {blades.map((angle, idx) => (
-        <mesh key={idx} geometry={bladeGeo} rotation={[angle, 0, 0]}>
-          <meshStandardMaterial color={bladeColor} metalness={0.88} roughness={0.18} />
-        </mesh>
-      ))}
+      {/* All Twisted Cambered Airfoil Blades in 1 Single Draw Call */}
+      <mesh geometry={mergedBladesGeo}>
+        <meshStandardMaterial color={bladeColor} metalness={0.88} roughness={0.18} />
+      </mesh>
     </group>
   );
 }
@@ -413,18 +702,24 @@ function TurbofanCameraRig({
   const { camera } = useThree();
   const desiredPos = useRef(new THREE.Vector3(-4.8, 2.0, 8.2));
   const desiredTarget = useRef(new THREE.Vector3(0.2, 0.1, 0));
+  const explodeRef = useRef(explodeFactor);
+
+  useEffect(() => {
+    explodeRef.current = explodeFactor;
+  }, [explodeFactor]);
 
   useEffect(() => {
     if (followCamera && tourPlaying) return;
-    if (!followCamera) return;
+    if (!followCamera || !selectedStageId) return;
     const stg = TURBOFAN_STAGES.find((s) => s.id === selectedStageId);
     if (stg) {
-      const currentX = THREE.MathUtils.lerp(stg.baseX, stg.explodeX, explodeFactor);
-      desiredPos.current.set(currentX - 1.35, 1.45, 5.8 + explodeFactor * 2.4);
+      const ef = explodeRef.current;
+      const currentX = THREE.MathUtils.lerp(stg.baseX, stg.explodeX, ef);
+      desiredPos.current.set(currentX - 1.35, 1.45, 5.8 + ef * 2.4);
       desiredTarget.current.set(currentX, 0.05, 0);
       tweenFramesRef.current = 42;
     }
-  }, [selectedStageId, explodeFactor, followCamera, tourPlaying, tweenFramesRef]);
+  }, [selectedStageId, followCamera, tourPlaying, tweenFramesRef]);
 
   useFrame((_, dt) => {
     if (followCamera && tourPlaying) {
@@ -483,161 +778,7 @@ function TurbofanAssemblyScene({
 
   // 1. Sculpted Supercritical Commercial Airliner Wing + Blended Winglet + Aerodynamic Pylon
   const { wingGeo, pylonGeo, canoeGeo, cowlingOuterPortGeo, cowlingOuterStbdGeo } =
-    useMemo(() => {
-      // Swept supercritical wing from fuselage root (z = -5.8) across engine (z = 0) to wingtip + winglet (z = +5.6)
-      const wingStations = [
-        makeSupercriticalAirfoilRing({
-          xLead: -3.2,
-          yOffset: -0.15,
-          zSpan: -5.8,
-          chord: 7.4,
-          thicknessRatio: 0.125,
-          camberRatio: 0.028,
-          twistRad: 0.03,
-        }),
-        makeSupercriticalAirfoilRing({
-          xLead: -2.45,
-          yOffset: 0.02,
-          zSpan: -2.6,
-          chord: 6.2,
-          thicknessRatio: 0.115,
-          camberRatio: 0.025,
-          twistRad: 0.02,
-        }),
-        makeSupercriticalAirfoilRing({
-          xLead: -1.9,
-          yOffset: 0.16,
-          zSpan: 0.0,
-          chord: 5.3,
-          thicknessRatio: 0.108,
-          camberRatio: 0.022,
-          twistRad: 0.01,
-        }),
-        makeSupercriticalAirfoilRing({
-          xLead: -1.15,
-          yOffset: 0.34,
-          zSpan: 3.1,
-          chord: 4.1,
-          thicknessRatio: 0.098,
-          camberRatio: 0.018,
-          twistRad: -0.01,
-        }),
-        makeSupercriticalAirfoilRing({
-          xLead: -0.45,
-          yOffset: 0.52,
-          zSpan: 5.2,
-          chord: 2.75,
-          thicknessRatio: 0.088,
-          camberRatio: 0.014,
-          twistRad: -0.02,
-        }),
-        // Raked Winglet Transition
-        makeSupercriticalAirfoilRing({
-          xLead: 0.25,
-          yOffset: 1.15,
-          zSpan: 5.85,
-          chord: 1.55,
-          thicknessRatio: 0.08,
-          camberRatio: 0.01,
-          twistRad: -0.03,
-        }),
-      ];
-      const wGeo = buildLoftedWingGeo(wingStations, 36);
-
-      // Streamlined Aerodynamic Engine Pylon Strut (Symmetric airfoil lofted vertically from nacelle top to wing lower surface)
-      const pylonStations = [
-        // Top attachment under wing
-        makeSupercriticalAirfoilRing({
-          xLead: -1.85,
-          yOffset: 0.18,
-          zSpan: 0,
-          chord: 5.2,
-          thicknessRatio: 0.085,
-          camberRatio: 0,
-          twistRad: 0,
-        }).map(([x, z, _]) => [x, 0.22, z]),
-        // Mid-upper pylon
-        makeSupercriticalAirfoilRing({
-          xLead: -2.45,
-          yOffset: 0,
-          zSpan: 0,
-          chord: 5.6,
-          thicknessRatio: 0.078,
-          camberRatio: 0,
-          twistRad: 0,
-        }).map(([x, z, _]) => [x, -0.25, z]),
-        // Forward-swept pylon brow above fan case
-        makeSupercriticalAirfoilRing({
-          xLead: -2.95,
-          yOffset: 0,
-          zSpan: 0,
-          chord: 5.8,
-          thicknessRatio: 0.072,
-          camberRatio: 0,
-          twistRad: 0,
-        }).map(([x, z, _]) => [x, -0.72, z]),
-        // Nacelle dorsal spine attachment
-        makeSupercriticalAirfoilRing({
-          xLead: -2.65,
-          yOffset: 0,
-          zSpan: 0,
-          chord: 5.1,
-          thicknessRatio: 0.068,
-          camberRatio: 0,
-          twistRad: 0,
-        }).map(([x, z, _]) => [x, -1.12, z]),
-      ];
-      const pGeo = buildLoftedWingGeo(pylonStations, 36);
-
-      // Smooth teardrop flap-track fairing canoe (LatheGeometry)
-      const canoePts = [];
-      for (let i = 0; i <= 20; i++) {
-        const u = i / 20;
-        const r = Math.sin(u * Math.PI) * (1 - 0.35 * u) * 0.21;
-        const y = (u - 0.5) * 2.4;
-        canoePts.push(new THREE.Vector2(Math.max(0.002, r), y));
-      }
-      const cGeo = new THREE.LatheGeometry(canoePts, 24);
-      cGeo.rotateZ(Math.PI / 2);
-
-      // Barrel-curved nacelle clamshell cowling doors (LatheGeometry half-shells)
-      // In lathe coordinates: Y is axial (will be rotated to X), X is radius
-      const cowlPts = [];
-      const cowlSteps = 28;
-      for (let i = 0; i <= cowlSteps; i++) {
-        const u = i / cowlSteps; // 0 = front behind inlet lip, 1 = aft bypass exit
-        // Smooth barrel curve: 1.78 at front, swelling to 1.88 at mid-chord, tapering to 1.54 at aft exit
-        const barrelR =
-          1.78 +
-          0.12 * Math.sin(u * Math.PI) -
-          0.24 * Math.pow(u, 1.45);
-        const axialY = (0.5 - u) * 4.95;
-        cowlPts.push(new THREE.Vector2(barrelR, axialY));
-      }
-      const portShell = new THREE.LatheGeometry(
-        cowlPts,
-        40,
-        0.1,
-        Math.PI - 0.2
-      );
-      portShell.rotateZ(Math.PI / 2);
-
-      const stbdShell = new THREE.LatheGeometry(
-        cowlPts,
-        40,
-        Math.PI + 0.1,
-        Math.PI - 0.2
-      );
-      stbdShell.rotateZ(Math.PI / 2);
-
-      return {
-        wingGeo: wGeo,
-        pylonGeo: pGeo,
-        canoeGeo: cGeo,
-        cowlingOuterPortGeo: portShell,
-        cowlingOuterStbdGeo: stbdShell,
-      };
-    }, []);
+    useMemo(() => getCachedTurbofanStructGeos(), []);
 
   // Combustor spark & flow particle data
   const flowParticles = useMemo(() => {
@@ -1395,10 +1536,18 @@ export default function TurbofanExplorer3D({
   bypassRatio = 8.5,
   height = '640px',
 }) {
-  const [internalStageId, setInternalStageId] = useState('fan');
-  const selectedStageId = externalStageId || internalStageId;
+  const [internalStageId, setInternalStageId] = useState(null);
+  const selectedStageId =
+    externalStageId !== undefined ? externalStageId : internalStageId;
   const setSelectedStageId = externalOnSelectStage || setInternalStageId;
 
+  const handleToggleStage = (stageId) => {
+    setTourPlaying(false);
+    setSelectedStageId(selectedStageId === stageId ? null : stageId);
+  };
+
+  const containerRef = useRef();
+  const [isInView, setIsInView] = useState(true);
   const [cowlingOpen, setCowlingOpen] = useState(true);
   const [explodeFactor, setExplodeFactor] = useState(0.0);
   const [skyBackdrop, setSkyBackdrop] = useState(true);
@@ -1408,6 +1557,17 @@ export default function TurbofanExplorer3D({
   const [playbackSpeed, setPlaybackSpeed] = useState(1.0);
   const controlsRef = useRef();
   const tweenFramesRef = useRef(0);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el || typeof IntersectionObserver === 'undefined') return undefined;
+    const obs = new IntersectionObserver(
+      ([entry]) => setIsInView(entry.isIntersecting),
+      { threshold: 0.05 }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
 
   // Guided Tour Timer Loop (0.0s -> 28.0s)
   useEffect(() => {
@@ -1456,6 +1616,7 @@ export default function TurbofanExplorer3D({
 
   return (
     <div
+      ref={containerRef}
       style={{
         position: 'relative',
         width: '100%',
@@ -1579,15 +1740,14 @@ export default function TurbofanExplorer3D({
               type="button"
               onClick={() => {
                 setTourPlaying(false);
-                setExplodeFactor(0);
-                setCowlingOpen(true);
-                setSelectedStageId('fan');
-                tweenFramesRef.current = 42;
+                setSelectedStageId(null);
+                tweenFramesRef.current = 0;
               }}
-              className="btn btn-secondary btn-sm"
+              className={`btn btn-sm ${selectedStageId === null ? 'btn-primary' : 'btn-secondary'}`}
               style={{ fontSize: '11px' }}
+              title="Unlock stage camera to orbit and zoom freely"
             >
-              Reset view
+              Free orbit
             </button>
             <button
               type="button"
@@ -1656,7 +1816,16 @@ export default function TurbofanExplorer3D({
       {/* ================================================================= */}
       {/* THREE.JS 3D CANVAS                                                */}
       {/* ================================================================= */}
-      <Canvas shadows dpr={[1, 2]}>
+      <Canvas
+        frameloop={isInView ? 'always' : 'demand'}
+        shadows
+        dpr={[1, 1.75]}
+        onPointerMissed={() => {
+          setTourPlaying(false);
+          setSelectedStageId(null);
+          tweenFramesRef.current = 0;
+        }}
+      >
         <PerspectiveCamera makeDefault position={[-4.8, 2.0, 8.2]} fov={40} />
         <TurbofanCameraRig
           followCamera={followCamera}
@@ -1685,10 +1854,7 @@ export default function TurbofanExplorer3D({
 
         <TurbofanAssemblyScene
           selectedStageId={selectedStageId}
-          onSelectStage={(id) => {
-            setTourPlaying(false);
-            setSelectedStageId(id);
-          }}
+          onSelectStage={handleToggleStage}
           cowlingOpen={cowlingOpen}
           explodeFactor={explodeFactor}
           throttlePct={throttlePct}
@@ -1753,10 +1919,16 @@ export default function TurbofanExplorer3D({
                   fontWeight: 700,
                 }}
               >
-                {activeStage.phase} · {activeStage.code}
+                {selectedStageId || tourPlaying
+                  ? `${activeStage.phase} · ${activeStage.code}`
+                  : 'FREE ORBIT · 360° UNLOCKED'}
               </span>
               <strong style={{ fontSize: '13px', color: 'var(--glass-text)' }}>
-                {tourPlaying ? currentTourSegment.title : activeStage.name}
+                {tourPlaying
+                  ? currentTourSegment.title
+                  : selectedStageId
+                  ? activeStage.name
+                  : 'Full Dual-Spool Cutaway (Click any stage to lock)'}
               </strong>
             </div>
             <div className="mono" style={{ fontSize: '11px', color: 'var(--glass-muted)' }}>

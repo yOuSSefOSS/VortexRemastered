@@ -34,6 +34,8 @@ export const F16_PARTS = [
     labelOffset: [1.35, 0.92, 0.45],
     summary:
       'Sears-Haack dielectric ogive nose cone housing the Northrop Grumman AN/APG-68(V)9 pulse-Doppler fire-control radar and nose pitot-static boom.',
+    kidExplanation:
+      'Think of the nose cone as the jet’s eyes and weather sensor! Inside is a powerful radar dish that can spot other airplanes hundreds of kilometers away, even through clouds or at night, while the sharp needle on the tip measures how fast the jet is flying.',
     engineeringNote:
       'Sears-Haack ogive curvature minimizes transonic wave drag (CD,wave) while maintaining X-band radar transparency and lightning diversion.',
     engineering:
@@ -59,6 +61,8 @@ export const F16_PARTS = [
     labelOffset: [0.35, 1.18, -0.55],
     summary:
       'Frameless single-piece gold-indium-tin coated polycarbonate bubble canopy providing 360° upper-hemisphere visibility, paired with a 30° reclined ACES II seat.',
+    kidExplanation:
+      'This is where the pilot sits! Unlike most jets that have metal bars across the windshield, the F-16 has a giant see-through bubble so the pilot can look all the way around. The seat tilts back like a recliner chair to help the pilot handle super-strong gravity forces during sharp turns.',
     engineeringNote:
       'The 30° seat tilt reduces vertical heart-to-brain hydrostatic column height h, raising pilot sustained G-tolerance to +9.0 Gz.',
     engineering:
@@ -84,6 +88,8 @@ export const F16_PARTS = [
     labelOffset: [-0.35, 1.42, 0],
     summary:
       'Blended wing-body (BWB) fuselage with sharp forebody chine strakes (LERX), dorsal avionics spine, M61A1 20mm rotary cannon bay, and integral fuel cells.',
+    kidExplanation:
+      'The main body of the F-16 blends smoothly into the wings like a manta ray! Those sharp ledges along the sides of the nose create spinning whirlwinds of air that help keep the jet steady when it points its nose steeply upward.',
     engineeringNote:
       'Forebody LERX strakes shed stable leading-edge vortices at high α (>15°), generating vortex lift and energizing boundary-layer flow over the tail.',
     engineering:
@@ -109,6 +115,8 @@ export const F16_PARTS = [
     labelOffset: [0.85, -0.92, 0.75],
     summary:
       'Fixed-geometry ventral chin intake with boundary-layer diverter splitter plate positioned beneath the forebody to prevent flow separation at high α.',
+    kidExplanation:
+      'A jet engine needs to breathe a huge amount of air! This smiling scoop under the chin gulps in air at twice the speed of sound and slows it down smoothly before it reaches the spinning engine fan inside.',
     engineeringNote:
       'Forebody compression plus a normal shock at the inlet lip decelerates Mach 1.6–2.0 freestream air to Mach ~0.45 at the F110 fan face.',
     engineering:
@@ -134,6 +142,8 @@ export const F16_PARTS = [
     labelOffset: [0.1, 0.88, -2.05],
     summary:
       '40° leading-edge sweep cropped-delta planform using a thin NACA 64A204 section (t/c = 4%) with automatic leading-edge maneuvering flaps and trailing-edge flaperons.',
+    kidExplanation:
+      'The left wing slices through the air to create lift that holds the 19-ton jet in the sky! Moving panels on the front and back edges tilt automatically to help the jet roll and turn in the blink of an eye.',
     engineeringNote:
       'Leading-edge flaps automatically schedule with Angle of Attack α and Mach number to delay leading-edge stall and minimize camber drag.',
     engineering:
@@ -159,6 +169,8 @@ export const F16_PARTS = [
     labelOffset: [0.1, 0.88, 2.05],
     summary:
       'Starboard multi-spar primary lifting surface featuring integral wing fuel bays, weapons pylons, and high-rate electro-hydraulic flaperon actuators.',
+    kidExplanation:
+      'The right wing works together with the left wing to lift the jet and roll it 360 degrees in just over one second! Inside the wing are sealed tanks that also store jet fuel.',
     engineeringNote:
       'Relaxed static stability (negative subsonic static margin ~ −2% MAC) allows the horizontal tail to upload rather than download in maneuvering flight.',
     engineering:
@@ -184,6 +196,8 @@ export const F16_PARTS = [
     labelOffset: [-0.95, 1.85, -0.35],
     summary:
       '47.5°-swept graphite-epoxy composite vertical tail fin with dorsal brake-chute/ECM fairing, RWR blister, and hydraulic rudder servo.',
+    kidExplanation:
+      'Just like the tail fin on a fish or a dart, this tall vertical fin keeps the jet pointing straight ahead so it doesn’t slide sideways. The hinged rudder on the back swings left and right to steer the nose.',
     engineeringNote:
       'Provides directional weathercock stability (Cnβ > 0) and high-α yaw authority in the energized vortex wake shed by the forebody strakes.',
     engineering:
@@ -209,6 +223,8 @@ export const F16_PARTS = [
     labelOffset: [-0.85, -0.58, -1.45],
     summary:
       'All-moving pivoted horizontal tail surface with 10° anhedral droop providing longitudinal pitch control and differential roll augmentation (taileron).',
+    kidExplanation:
+      'Unlike small planes where only a back flap moves, this entire back wing tilts up and down! Tilting it pitches the F-16’s nose up to climb or down to dive.',
     engineeringNote:
       'In supersonic flight where the aerodynamic center shifts aft from 25% to ~50% MAC, all-moving stabilators retain full pitch authority without shock blanking.',
     engineering:
@@ -234,6 +250,8 @@ export const F16_PARTS = [
     labelOffset: [-0.85, -0.58, 1.45],
     summary:
       'Starboard composite honeycomb stabilator pivoted on a titanium spindle shaft and commanded at 400 Hz by the quad-redundant digital flight control computer.',
+    kidExplanation:
+      'Controlled 400 times every second by four flight computers, the right tail wing tilts together with the left one to pitch up/down, or in opposite directions to help roll the jet faster!',
     engineeringNote:
       'Continuously makes micro-adjustments to artificially stabilize the airframe’s negative static margin in subsonic flight.',
     engineering:
@@ -259,6 +277,8 @@ export const F16_PARTS = [
     labelOffset: [-1.45, 0.72, 0.55],
     summary:
       'Variable-area convergent-divergent (C-D) 16-petal iris exhaust nozzle mated to the GE F110-GE-129 afterburning turbofan (131.2 kN wet thrust).',
+    kidExplanation:
+      'This is the rocket-like exhaust pipe at the back! Its 16 metal petals open and close like the pupil of an eye. When the pilot hits "Launch Flight" (afterburner), extra fuel ignites into a giant glowing flame with diamond-shaped shock rings!',
     engineeringNote:
       'Modulates throat area A* and exit area Ae to expand exhaust gas supersonic, forming visible Mach shock diamonds in the afterburner plume.',
     engineering:
@@ -284,6 +304,8 @@ export const F16_PARTS = [
     labelOffset: [-0.25, -1.05, -0.95],
     summary:
       'Steerable nose gear aft of the chin intake and wide-track fuselage-retracting main gear with oleo-pneumatic shock struts, scissors links, and carbon brakes.',
+    kidExplanation:
+      'The landing wheels and shock absorbers! They cushion the bump when the jet touches down on the runway and fold neatly inside the belly after takeoff so they don’t slow the jet down.',
     engineeringNote:
       'Absorbs vertical sink-rate kinetic energy (½·m·Vz²) on touchdown and retracts flush into white-painted lower fuselage bays.',
     engineering:
@@ -309,6 +331,8 @@ export const F16_PARTS = [
     labelOffset: [0.55, -0.78, 2.35],
     summary:
       'Wingtip LAU-129 rails carrying AIM-9X Sidewinders, mid-wing AIM-120 AMRAAMs, and inboard 370-gallon external fuel drop tanks.',
+    kidExplanation:
+      'The equipment carried under the wings and on the wingtips! Those big torpedo-shaped tanks hold extra fuel for long flights, and placing missiles right on the wingtips actually helps stop swirling air drag.',
     engineeringNote:
       'Mounting missiles on the wingtips acts as aerodynamic endplates, attenuating wingtip vortex roll-up and reducing induced drag CD,i by ~6%.',
     engineering:
@@ -476,58 +500,270 @@ function buildTaperedAirfoilGeo({
 }
 
 /**
- * Generates a high-DPI procedural canvas texture for the F-16C vertical tail fin
- * ("AF 80 025" tail code, tactical squadron stripe, and star insignia — Video 1 style).
+ * Generates (and caches at module scope) a high-DPI procedural canvas texture
+ * for the F-16C vertical tail fin ("AF 80 025" tail code, tactical squadron stripe).
  */
-function useTailFinTexture() {
-  return useMemo(() => {
-    if (typeof document === 'undefined') return null;
-    const canvas = document.createElement('canvas');
-    canvas.width = 512;
-    canvas.height = 512;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return null;
+let CACHED_TAIL_TEXTURE = null;
+function getTailFinTexture() {
+  if (CACHED_TAIL_TEXTURE) return CACHED_TAIL_TEXTURE;
+  if (typeof document === 'undefined') return null;
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 512;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
 
-    // Base tactical compass-ghost gray paint
-    ctx.fillStyle = '#94A3B8';
-    ctx.fillRect(0, 0, 512, 512);
+  ctx.fillStyle = '#94A3B8';
+  ctx.fillRect(0, 0, 512, 512);
 
-    // Subtle structural panel lines
-    ctx.strokeStyle = 'rgba(30, 41, 59, 0.28)';
-    ctx.lineWidth = 2;
-    for (let y = 80; y < 460; y += 75) {
-      ctx.beginPath();
-      ctx.moveTo(20, y);
-      ctx.lineTo(490, y - 25);
-      ctx.stroke();
+  ctx.strokeStyle = 'rgba(30, 41, 59, 0.28)';
+  ctx.lineWidth = 2;
+  for (let y = 80; y < 460; y += 75) {
+    ctx.beginPath();
+    ctx.moveTo(20, y);
+    ctx.lineTo(490, y - 25);
+    ctx.stroke();
+  }
+
+  ctx.fillStyle = '#1E293B';
+  ctx.fillRect(0, 54, 512, 34);
+  ctx.fillStyle = '#2E8BFF';
+  ctx.fillRect(0, 88, 512, 8);
+  ctx.fillStyle = '#F4B740';
+  ctx.fillRect(0, 96, 512, 5);
+
+  ctx.fillStyle = '#1E293B';
+  ctx.font = 'bold 28px monospace';
+  ctx.fillText('AF', 160, 155);
+  ctx.font = 'bold 22px monospace';
+  ctx.fillText('80', 205, 155);
+  ctx.font = 'bold 46px monospace';
+  ctx.fillText('025', 155, 202);
+
+  ctx.font = 'bold 64px sans-serif';
+  ctx.fillStyle = '#0F172A';
+  ctx.fillText('SW', 155, 310);
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.needsUpdate = true;
+  CACHED_TAIL_TEXTURE = tex;
+  return tex;
+}
+
+let CACHED_F16_GEOMETRIES = null;
+export function getF16Geometries() {
+  if (CACHED_F16_GEOMETRIES) return CACHED_F16_GEOMETRIES;
+  const radialSegs = 56;
+
+  // 1. RADOME
+  const radomeRings = [];
+  const rSteps = 36;
+  for (let i = 0; i <= rSteps; i++) {
+    const u = i / rSteps;
+    const x = u * 1.85;
+    const shapeFactor = Math.pow(1 - u, 0.58) * (1 + 0.16 * u * (1 - u));
+    const ry = Math.max(0.004, 0.31 * shapeFactor);
+    const rz = Math.max(0.004, 0.36 * shapeFactor * (1 + 0.08 * Math.sin(u * Math.PI)));
+    const yDroop = -0.045 * Math.pow(u, 1.55);
+
+    const ring = [];
+    for (let j = 0; j < radialSegs; j++) {
+      const theta = (j / radialSegs) * Math.PI * 2;
+      const chinePinch = 1 + 0.06 * Math.pow(Math.cos(theta), 2) * (1 - u);
+      ring.push([
+        x,
+        yDroop + ry * Math.sin(theta),
+        rz * Math.cos(theta) * chinePinch,
+      ]);
+    }
+    radomeRings.push(ring);
+  }
+  const radomeGeo = buildLoftedBufferGeometry(radomeRings, true);
+
+  // 2. AIRFRAME (Blended Wing-Body + Chine Strakes + Dorsal Spine)
+  const fuseRings = [];
+  const fSteps = 56;
+  for (let i = 0; i <= fSteps; i++) {
+    const u = i / fSteps;
+    const x = -2.82 + u * 5.47;
+    const endBlend = Math.sin(u * Math.PI);
+    const baseRy =
+      0.39 * (1 - u) + 0.31 * u + 0.08 * Math.sin(u * Math.PI * 0.9);
+    const baseRz =
+      0.39 * (1 - u) + 0.36 * u + 0.16 * Math.pow(endBlend, 0.85);
+
+    let chineWidth = 0;
+    if (x > -1.8 && x < 2.58) {
+      const tChine = (x - -1.8) / (2.58 - -1.8);
+      chineWidth = 0.38 * Math.sin(tChine * Math.PI) * (1 - 0.25 * tChine);
     }
 
-    // Upper fin tactical squadron flash band (navy + gold/blue accent)
-    ctx.fillStyle = '#1E293B';
-    ctx.fillRect(0, 54, 512, 34);
-    ctx.fillStyle = '#2E8BFF';
-    ctx.fillRect(0, 88, 512, 8);
-    ctx.fillStyle = '#F4B740';
-    ctx.fillRect(0, 96, 512, 5);
+    let spineHeight = 0;
+    if (x > -2.65 && x < 0.95) {
+      const tSpine = (x - -2.65) / (0.95 - -2.65);
+      spineHeight = 0.19 * Math.sin(tSpine * Math.PI);
+    }
 
-    // "AF 80 025" tail serial markings
-    ctx.fillStyle = '#1E293B';
-    ctx.font = 'bold 28px monospace';
-    ctx.fillText('AF', 160, 155);
-    ctx.font = 'bold 22px monospace';
-    ctx.fillText('80', 205, 155);
-    ctx.font = 'bold 46px monospace';
-    ctx.fillText('025', 155, 202);
+    let cockpitRecess = 0;
+    if (x > 0.6 && x < 2.3) {
+      const tCockpit = (x - 0.6) / (2.3 - 0.6);
+      cockpitRecess = 0.06 * Math.sin(tCockpit * Math.PI);
+    }
 
-    // Tactical Wing Code "SW"
-    ctx.font = 'bold 64px sans-serif';
-    ctx.fillStyle = '#0F172A';
-    ctx.fillText('SW', 155, 310);
+    const ring = [];
+    for (let j = 0; j < radialSegs; j++) {
+      const theta = (j / radialSegs) * Math.PI * 2;
+      const cosT = Math.cos(theta);
+      const sinT = Math.sin(theta);
+      const chineLobe =
+        Math.pow(Math.abs(cosT), 3.2) * Math.exp(-Math.pow(sinT - 0.1, 2) * 8.0);
+      const spineLobe =
+        sinT > 0 ? Math.pow(sinT, 5.0) * Math.pow(1 - Math.abs(cosT), 1.5) : 0;
 
-    const tex = new THREE.CanvasTexture(canvas);
-    tex.needsUpdate = true;
-    return tex;
-  }, []);
+      const z = (baseRz + chineWidth * chineLobe) * cosT;
+      let y = baseRy * sinT + spineHeight * spineLobe;
+      if (sinT > 0.4) {
+        y -= cockpitRecess * Math.pow(sinT, 2);
+      }
+      if (sinT < -0.5 && x > 0.4) {
+        y *= 0.88;
+      }
+      ring.push([x, y, z]);
+    }
+    fuseRings.push(ring);
+  }
+  const fuselageGeo = buildLoftedBufferGeometry(fuseRings, true);
+
+  // 3. COCKPIT CANOPY
+  const canopyRings = [];
+  const cSteps = 32;
+  const cRadial = 36;
+  for (let i = 0; i <= cSteps; i++) {
+    const u = i / cSteps;
+    const x = -1.12 + u * 2.1;
+    const env = Math.sin(u * Math.PI);
+    const tear = Math.pow(env, 0.72) * (1 + 0.22 * Math.sin(u * Math.PI * 2 - 0.6));
+    const widthZ = Math.max(0.005, 0.31 * Math.pow(env, 0.65));
+    const heightY = Math.max(0.005, 0.37 * tear);
+    const sillY = -0.04 * Math.sin(u * Math.PI);
+
+    const ring = [];
+    for (let j = 0; j < cRadial; j++) {
+      const theta = (j / cRadial) * Math.PI * 2;
+      const cosT = Math.cos(theta);
+      const sinT = Math.sin(theta);
+      const y =
+        sinT >= 0
+          ? sillY + heightY * Math.pow(sinT, 0.88)
+          : sillY + 0.045 * sinT * env;
+      const z = widthZ * cosT;
+      ring.push([x, y, z]);
+    }
+    canopyRings.push(ring);
+  }
+  const canopyGeo = buildLoftedBufferGeometry(canopyRings, true);
+
+  // 4. SUPERSONIC VENTRAL INTAKE
+  const intakeRings = [];
+  const inSteps = 28;
+  const inRadial = 40;
+  for (let i = 0; i <= inSteps; i++) {
+    const u = i / inSteps;
+    const x = -2.15 + u * 3.07;
+    const aftTaper = u < 0.25 ? Math.pow(u / 0.25, 0.6) : 1.0;
+    const widthZ = (0.36 + 0.05 * Math.sin(u * Math.PI)) * aftTaper;
+    const heightY = (0.21 + 0.03 * Math.sin(u * Math.PI)) * aftTaper;
+
+    const ring = [];
+    for (let j = 0; j < inRadial; j++) {
+      const theta = (j / inRadial) * Math.PI * 2;
+      const cosT = Math.cos(theta);
+      const sinT = Math.sin(theta);
+      const y =
+        sinT > 0
+          ? heightY * 0.62 * Math.tanh(sinT * 2.4)
+          : heightY * 1.15 * sinT;
+      const z = widthZ * cosT * (1 - 0.08 * Math.max(0, -sinT));
+      const xRake = u > 0.85 ? ((u - 0.85) / 0.15) * 0.14 * sinT : 0;
+      ring.push([x + xRake, y, z]);
+    }
+    intakeRings.push(ring);
+  }
+  const intakeGeo = buildLoftedBufferGeometry(intakeRings, false);
+
+  // 5. CROPPED-DELTA WING
+  const wingGeo = buildTaperedAirfoilGeo({
+    rootX0: 1.18,
+    rootX1: -1.16,
+    tipX0: -0.34,
+    tipX1: -1.04,
+    spanZ: 2.16,
+    rootThick: 0.048,
+    tipThick: 0.038,
+    camber: 0.01,
+    spanSteps: 22,
+    chordSteps: 28,
+    vertical: false,
+  });
+
+  // 6. VERTICAL STABILIZER FIN
+  const vTailGeo = buildTaperedAirfoilGeo({
+    rootX0: 1.02,
+    rootX1: -0.82,
+    tipX0: -0.34,
+    tipX1: -0.98,
+    spanZ: 1.52,
+    rootThick: 0.052,
+    tipThick: 0.038,
+    camber: 0.0,
+    spanSteps: 18,
+    chordSteps: 24,
+    vertical: true,
+  });
+
+  // 7. ALL-MOVING STABILATOR
+  const stabilatorGeo = buildTaperedAirfoilGeo({
+    rootX0: 0.56,
+    rootX1: -0.52,
+    tipX0: -0.18,
+    tipX1: -0.62,
+    spanZ: 1.08,
+    rootThick: 0.042,
+    tipThick: 0.03,
+    camber: 0.0,
+    spanSteps: 14,
+    chordSteps: 20,
+    vertical: false,
+  });
+
+  // 8. 370-GALLON SEARS-HAACK DROP TANK
+  const tankPts = [];
+  const tLen = 2.15;
+  for (let i = 0; i <= 36; i++) {
+    const u = i / 36;
+    const y = (u - 0.5) * tLen;
+    const r = 0.16 * Math.sin(u * Math.PI) * (1 + 0.16 * Math.sin(u * Math.PI));
+    tankPts.push(new THREE.Vector2(Math.max(0.003, r), y));
+  }
+  const dropTankGeo = new THREE.LatheGeometry(tankPts, 36);
+  dropTankGeo.rotateZ(-Math.PI / 2);
+
+  CACHED_F16_GEOMETRIES = {
+    radomeGeo,
+    fuselageGeo,
+    canopyGeo,
+    intakeGeo,
+    wingGeo,
+    vTailGeo,
+    stabilatorGeo,
+    dropTankGeo,
+  };
+  return CACHED_F16_GEOMETRIES;
+}
+
+export function preloadF16Assets() {
+  getTailFinTexture();
+  getF16Geometries();
 }
 
 /**
@@ -717,259 +953,8 @@ function F16SculptedModel({
   const afterburnerRef = useRef();
   const streamlinesRef = useRef();
   const intakeFanRef = useRef();
-  const tailTexture = useTailFinTexture();
-
-  // Build cohesive, interlocking lofted geometries for all 12 assemblies
-  const geometries = useMemo(() => {
-    const radialSegs = 56;
-
-    // -------------------------------------------------------------------------
-    // 1. RADOME: Drooped Sears-Haack Elliptical Ogive (x_local: 0 -> +1.85)
-    //    Matches fuselage forward bulkhead at x_local = 0 (ry=0.31, rz=0.36)
-    // -------------------------------------------------------------------------
-    const radomeRings = [];
-    const rSteps = 36;
-    for (let i = 0; i <= rSteps; i++) {
-      const u = i / rSteps; // 0 = base bulkhead, 1 = nose apex
-      const x = u * 1.85;
-      const shapeFactor = Math.pow(1 - u, 0.58) * (1 + 0.16 * u * (1 - u));
-      const ry = Math.max(0.004, 0.31 * shapeFactor);
-      const rz = Math.max(0.004, 0.36 * shapeFactor * (1 + 0.08 * Math.sin(u * Math.PI)));
-      const yDroop = -0.045 * Math.pow(u, 1.55);
-
-      const ring = [];
-      for (let j = 0; j < radialSegs; j++) {
-        const theta = (j / radialSegs) * Math.PI * 2;
-        const chinePinch = 1 + 0.06 * Math.pow(Math.cos(theta), 2) * (1 - u);
-        ring.push([
-          x,
-          yDroop + ry * Math.sin(theta),
-          rz * Math.cos(theta) * chinePinch,
-        ]);
-      }
-      radomeRings.push(ring);
-    }
-    const radomeGeo = buildLoftedBufferGeometry(radomeRings, true);
-
-    // -------------------------------------------------------------------------
-    // 2. AIRFRAME: Continuous Blended Wing-Body (x: -2.82 -> +2.65)
-    //    Integrates main oval fuselage, forebody LERX chine strakes, and dorsal
-    //    avionics spine into a single seamless mesh with zero primitive boxes.
-    //    At x = +2.65: matches radome base (ry=0.31, rz=0.36).
-    //    At x = -2.82: matches F110 exhaust nozzle shroud (circular r=0.39).
-    // -------------------------------------------------------------------------
-    const fuseRings = [];
-    const fSteps = 56;
-    for (let i = 0; i <= fSteps; i++) {
-      const u = i / fSteps; // 0 = aft nozzle (-2.82), 1 = forward radome bulkhead (+2.65)
-      const x = -2.82 + u * 5.47;
-
-      // Smoothly transition from circular nozzle (u=0) -> wide BWB mid-body -> radome bulkhead (u=1)
-      const endBlend = Math.sin(u * Math.PI);
-      const baseRy =
-        0.39 * (1 - u) + 0.31 * u + 0.08 * Math.sin(u * Math.PI * 0.9);
-      const baseRz =
-        0.39 * (1 - u) + 0.36 * u + 0.16 * Math.pow(endBlend, 0.85);
-
-      // Forebody & mid-body chine / LERX strake horizontal extension (active from x = -1.6 to +2.55)
-      let chineWidth = 0;
-      if (x > -1.8 && x < 2.58) {
-        const tChine = (x - -1.8) / (2.58 - -1.8); // 0 aft, 1 forward
-        chineWidth = 0.38 * Math.sin(tChine * Math.PI) * (1 - 0.25 * tChine);
-      }
-
-      // Dorsal avionics spine along top (x from -2.55 to +0.85)
-      let spineHeight = 0;
-      if (x > -2.65 && x < 0.95) {
-        const tSpine = (x - -2.65) / (0.95 - -2.65);
-        spineHeight = 0.19 * Math.sin(tSpine * Math.PI);
-      }
-
-      // Cockpit recess depression along top forebody (x from +0.65 to +2.25)
-      let cockpitRecess = 0;
-      if (x > 0.6 && x < 2.3) {
-        const tCockpit = (x - 0.6) / (2.3 - 0.6);
-        cockpitRecess = 0.06 * Math.sin(tCockpit * Math.PI);
-      }
-
-      const ring = [];
-      for (let j = 0; j < radialSegs; j++) {
-        const theta = (j / radialSegs) * Math.PI * 2;
-        const cosT = Math.cos(theta); // horizontal (+Z / -Z)
-        const sinT = Math.sin(theta); // vertical (+Y / -Y)
-
-        // Sharp horizontal chine lobe near y ≈ +0.04
-        const chineLobe = Math.pow(Math.abs(cosT), 3.2) * Math.exp(-Math.pow(sinT - 0.1, 2) * 8.0);
-        // Narrow dorsal spine lobe near top (sinT > 0.65)
-        const spineLobe =
-          sinT > 0 ? Math.pow(sinT, 5.0) * Math.pow(1 - Math.abs(cosT), 1.5) : 0;
-
-        const z = (baseRz + chineWidth * chineLobe) * cosT;
-        let y = baseRy * sinT + spineHeight * spineLobe;
-        if (sinT > 0.4) {
-          y -= cockpitRecess * Math.pow(sinT, 2);
-        }
-        // Slight flat bottom ahead of intake
-        if (sinT < -0.5 && x > 0.4) {
-          y *= 0.88;
-        }
-        ring.push([x, y, z]);
-      }
-      fuseRings.push(ring);
-    }
-    const fuselageGeo = buildLoftedBufferGeometry(fuseRings, true);
-
-    // -------------------------------------------------------------------------
-    // 3. COCKPIT CANOPY: Sculpted Teardrop Bubble Canopy (around basePos [1.42, 0.26, 0])
-    //    x_local: -1.12 (aft spine fairing) -> +0.98 (forward windscreen sill)
-    // -------------------------------------------------------------------------
-    const canopyRings = [];
-    const cSteps = 32;
-    const cRadial = 36;
-    for (let i = 0; i <= cSteps; i++) {
-      const u = i / cSteps; // 0 = aft, 1 = front apex
-      const x = -1.12 + u * 2.1;
-      const env = Math.sin(u * Math.PI);
-      // Teardrop profile: taller forward-mid, tapering smoothly aft
-      const tear = Math.pow(env, 0.72) * (1 + 0.22 * Math.sin(u * Math.PI * 2 - 0.6));
-      const widthZ = Math.max(0.005, 0.31 * Math.pow(env, 0.65));
-      const heightY = Math.max(0.005, 0.37 * tear);
-      const sillY = -0.04 * Math.sin(u * Math.PI);
-
-      const ring = [];
-      for (let j = 0; j < cRadial; j++) {
-        // Upper dome + tucked lower rim
-        const theta = (j / cRadial) * Math.PI * 2;
-        const cosT = Math.cos(theta);
-        const sinT = Math.sin(theta);
-        const y =
-          sinT >= 0
-            ? sillY + heightY * Math.pow(sinT, 0.88)
-            : sillY + 0.045 * sinT * env;
-        const z = widthZ * cosT;
-        ring.push([x, y, z]);
-      }
-      canopyRings.push(ring);
-    }
-    const canopyGeo = buildLoftedBufferGeometry(canopyRings, true);
-
-    // -------------------------------------------------------------------------
-    // 4. SUPERSONIC VENTRAL INTAKE: Lofted Smiling D-Duct (around basePos [0.85, -0.38, 0])
-    //    x_local: -2.15 (aft ventral fairing) -> +0.92 (swept normal-shock lip)
-    // -------------------------------------------------------------------------
-    const intakeRings = [];
-    const inSteps = 28;
-    const inRadial = 40;
-    for (let i = 0; i <= inSteps; i++) {
-      const u = i / inSteps; // 0 = aft belly blend, 1 = forward inlet mouth
-      const x = -2.15 + u * 3.07;
-      const aftTaper = u < 0.25 ? Math.pow(u / 0.25, 0.6) : 1.0;
-      const widthZ = (0.36 + 0.05 * Math.sin(u * Math.PI)) * aftTaper;
-      const heightY = (0.21 + 0.03 * Math.sin(u * Math.PI)) * aftTaper;
-
-      const ring = [];
-      for (let j = 0; j < inRadial; j++) {
-        const theta = (j / inRadial) * Math.PI * 2;
-        const cosT = Math.cos(theta);
-        const sinT = Math.sin(theta);
-        // D-duct: flat top splitter plate (sinT > 0), rounded smiling lower lip (sinT < 0)
-        const y =
-          sinT > 0
-            ? heightY * 0.62 * Math.tanh(sinT * 2.4)
-            : heightY * 1.15 * sinT;
-        const z = widthZ * cosT * (1 - 0.08 * Math.max(0, -sinT));
-        // Swept inlet lip rake at front
-        const xRake = u > 0.85 ? ((u - 0.85) / 0.15) * 0.14 * sinT : 0;
-        ring.push([x + xRake, y, z]);
-      }
-      intakeRings.push(ring);
-    }
-    const intakeGeo = buildLoftedBufferGeometry(intakeRings, false);
-
-    // -------------------------------------------------------------------------
-    // 5. CROPPED-DELTA WING: True 3D Tapered NACA 64A204 Airfoil Surface
-    //    Span from z_local = 0 (wing root) to z_local = +2.16 (wingtip rail)
-    // -------------------------------------------------------------------------
-    const wingGeo = buildTaperedAirfoilGeo({
-      rootX0: 1.18,
-      rootX1: -1.16,
-      tipX0: -0.34,
-      tipX1: -1.04,
-      spanZ: 2.16,
-      rootThick: 0.048,
-      tipThick: 0.038,
-      camber: 0.01,
-      spanSteps: 22,
-      chordSteps: 28,
-      vertical: false,
-    });
-
-    // -------------------------------------------------------------------------
-    // 6. VERTICAL STABILIZER FIN: True 3D Tapered Supersonic Biconvex Fin
-    //    Span along +Y from 0 to +1.52
-    // -------------------------------------------------------------------------
-    const vTailGeo = buildTaperedAirfoilGeo({
-      rootX0: 1.02,
-      rootX1: -0.82,
-      tipX0: -0.34,
-      tipX1: -0.98,
-      spanZ: 1.52,
-      rootThick: 0.052,
-      tipThick: 0.038,
-      camber: 0.0,
-      spanSteps: 18,
-      chordSteps: 24,
-      vertical: true,
-    });
-
-    // -------------------------------------------------------------------------
-    // 7. ALL-MOVING STABILATOR: Tapered Supersonic Biconvex Surface
-    // -------------------------------------------------------------------------
-    const stabilatorGeo = buildTaperedAirfoilGeo({
-      rootX0: 0.56,
-      rootX1: -0.52,
-      tipX0: -0.18,
-      tipX1: -0.62,
-      spanZ: 1.08,
-      rootThick: 0.042,
-      tipThick: 0.03,
-      camber: 0.0,
-      spanSteps: 14,
-      chordSteps: 20,
-      vertical: false,
-    });
-
-    // -------------------------------------------------------------------------
-    // 8. 370-GALLON SEARS-HAACK DROP TANK
-    // -------------------------------------------------------------------------
-    const tankPts = [];
-    const tLen = 2.15;
-    for (let i = 0; i <= 36; i++) {
-      const u = i / 36;
-      const y = (u - 0.5) * tLen;
-      const r = 0.16 * Math.sin(u * Math.PI) * (1 + 0.16 * Math.sin(u * Math.PI));
-      tankPts.push(new THREE.Vector2(Math.max(0.003, r), y));
-    }
-    const dropTankGeo = new THREE.LatheGeometry(tankPts, 36);
-    dropTankGeo.rotateZ(-Math.PI / 2);
-
-    return {
-      radomeGeo,
-      fuselageGeo,
-      canopyGeo,
-      intakeGeo,
-      wingGeo,
-      vTailGeo,
-      stabilatorGeo,
-      dropTankGeo,
-    };
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      Object.values(geometries).forEach((g) => g?.dispose?.());
-    };
-  }, [geometries]);
+  const tailTexture = useMemo(() => getTailFinTexture(), []);
+  const geometries = useMemo(() => getF16Geometries(), []);
 
   // Flight mode animation, afterburner shock-diamond pulse & intake compressor spin
   useFrame((state, delta) => {
@@ -1680,14 +1665,33 @@ export default function F16FalconAssembly({
   rigState = {},
   controlDeflections = {},
 }) {
+  const containerRef = useRef();
   const controlsRef = useRef();
   const animFramesRef = useRef(0);
   const [hoveredPart, setHoveredPart] = React.useState(null);
+  const [isInView, setIsInView] = React.useState(true);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el || typeof IntersectionObserver === 'undefined') return undefined;
+    const obs = new IntersectionObserver(
+      ([entry]) => {
+        setIsInView(entry.isIntersecting);
+      },
+      { threshold: 0.05 }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
 
   // Respect explicit `null` so the user can enter Free Orbit with no selection!
   const activeSelectedPart =
     selectedPartId !== undefined ? selectedPartId : selectedPart;
   const activeViewPreset = cameraView || viewPreset || 'overview';
+  const hoveredPartObj = useMemo(
+    () => (hoveredPart ? F16_PARTS.find((p) => p.id === hoveredPart) || null : null),
+    [hoveredPart]
+  );
   const mergedRigState = {
     ...rigState,
     aileronDeg: controlDeflections.aileron ?? rigState.aileronDeg ?? 0,
@@ -1698,6 +1702,7 @@ export default function F16FalconAssembly({
 
   return (
     <div
+      ref={containerRef}
       style={{
         width: '100%',
         height: '100%',
@@ -1706,8 +1711,51 @@ export default function F16FalconAssembly({
         overflow: 'hidden',
       }}
     >
+      {/* Floating Live Hover HUD Pill (Instant visual feedback when hovering over any 3D part) */}
+      {hoveredPartObj && (
+        <div
+          className="vg-glass"
+          style={{
+            position: 'absolute',
+            top: '16px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 25,
+            padding: '6px 14px',
+            borderRadius: 'var(--radius-pill)',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            pointerEvents: 'none',
+            border: '1px solid var(--accent-gold)',
+            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.35)',
+          }}
+        >
+          <span
+            className="mono"
+            style={{
+              fontSize: '10px',
+              fontWeight: 700,
+              color: 'var(--accent-gold)',
+            }}
+          >
+            PART {hoveredPartObj.index} / 12
+          </span>
+          <strong style={{ fontSize: '12px', color: 'var(--glass-text)' }}>
+            {hoveredPartObj.name}
+          </strong>
+          <span
+            className="mono"
+            style={{ fontSize: '10px', color: 'var(--glass-muted)' }}
+          >
+            · {activeSelectedPart === hoveredPartObj.id ? 'Click to unlock Free Orbit' : 'Click to inspect'}
+          </span>
+        </div>
+      )}
+
       <Canvas
-        dpr={[1, 2]}
+        frameloop={isInView ? 'always' : 'demand'}
+        dpr={[1, 1.75]}
         camera={{ position: [6.4, 2.3, 6.8], fov: 38, near: 0.1, far: 120 }}
         gl={{ powerPreference: 'high-performance', antialias: true }}
         onPointerMissed={() => {

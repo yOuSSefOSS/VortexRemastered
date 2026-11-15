@@ -1,29 +1,32 @@
 import React, { useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import {
+    Home,
     Compass,
     Sliders,
     Users,
     ShieldCheck,
     Sun,
     Moon,
-    Lock,
+    Sparkles,
     Cpu,
     Menu,
     X,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import VortexLogo from '../components/brand/VortexLogo';
+import { preloadRoute } from '../App';
 
 const NAV_ITEMS = [
-    { to: '/explore', label: '3D Hangar', icon: Compass },
-    { to: '/lab', label: 'Simulation Cockpit', icon: Sliders },
-    { to: '/events', label: 'Workshops & Cohorts', icon: Users },
+    { to: '/', label: 'Home', icon: Home, exact: true },
+    { to: '/explore', label: '3D Aircraft Hangar', icon: Compass },
+    { to: '/lab', label: 'Wind Tunnel & Lab', icon: Sliders },
+    { to: '/events', label: 'Workshops', icon: Users },
     { to: '/admin', label: 'Host Console', icon: ShieldCheck },
 ];
 
 export default function AppShell({ children }) {
     const location = useLocation();
-    const navigate = useNavigate();
     const [mobileOpen, setMobileOpen] = useState(false);
 
     const {
@@ -49,104 +52,51 @@ export default function AppShell({ children }) {
             {/* Clean, Modern "Fly Higher" Glass Header Bar */}
             <header
                 style={{
-                    height: '60px',
+                    height: '62px',
                     flexShrink: 0,
                     background: 'var(--glass-bg-strong)',
-                    backdropFilter: 'blur(16px) saturate(140%)',
-                    WebkitBackdropFilter: 'blur(16px) saturate(140%)',
+                    backdropFilter: 'blur(16px) saturate(150%)',
+                    WebkitBackdropFilter: 'blur(16px) saturate(150%)',
                     borderBottom: '1px solid var(--border-subtle)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    padding: '0 20px',
+                    padding: '0 22px',
                     position: 'sticky',
                     top: 0,
                     zIndex: 50,
                     gap: '16px',
                 }}
             >
-                {/* Left Segment: Brand Identity + Pill Navigation */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+                {/* Left Segment: Official Winged "V" Brand Identity + Pill Navigation */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '22px' }}>
                     <Link
                         to="/"
                         style={{
                             display: 'flex',
                             alignItems: 'center',
-                            gap: '10px',
                             textDecoration: 'none',
                             color: 'var(--text-primary)',
                         }}
                     >
-                        <img
-                            src="/brand/logo-icon.jpg"
-                            alt="Vortex-Gen"
-                            style={{
-                                width: '32px',
-                                height: '32px',
-                                borderRadius: '8px',
-                                border: '1px solid var(--border-strong)',
-                                objectFit: 'cover',
-                            }}
-                        />
-                        <div style={{ display: 'flex', flexDirection: 'column' }}>
-                            <span
-                                className="vg-display"
-                                style={{
-                                    fontSize: '0.95rem',
-                                    fontWeight: 700,
-                                    lineHeight: 1.15,
-                                    color: 'var(--text-primary)',
-                                }}
-                            >
-                                Vortex-Gen
-                            </span>
-                            <span
-                                className="mono"
-                                style={{
-                                    fontSize: '0.625rem',
-                                    letterSpacing: '0.12em',
-                                    color: 'var(--accent-primary)',
-                                    lineHeight: 1.2,
-                                    fontWeight: 600,
-                                }}
-                            >
-                                FLY HIGHER · AERO LAB
-                            </span>
-                        </div>
+                        <VortexLogo size={36} showWordmark showTagline variant="header" />
                     </Link>
 
-                    {/* Pill Navigation Links */}
+                    {/* Pill Navigation Links with Hover Preload */}
                     <nav className="hidden md:flex" style={{ alignItems: 'center', gap: '6px' }}>
                         {NAV_ITEMS.map((item) => {
                             const Icon = item.icon;
-                            const isActive =
-                                location.pathname === item.to ||
-                                location.pathname.startsWith(`${item.to}/`);
+                            const isActive = item.exact
+                                ? location.pathname === item.to
+                                : location.pathname === item.to ||
+                                  location.pathname.startsWith(`${item.to}/`);
                             return (
                                 <Link
                                     key={item.to}
                                     to={item.to}
-                                    style={{
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        gap: '7px',
-                                        height: '36px',
-                                        padding: '0 14px',
-                                        borderRadius: 'var(--radius-pill)',
-                                        background: isActive
-                                            ? 'var(--accent-subtle)'
-                                            : 'transparent',
-                                        border: isActive
-                                            ? '1px solid var(--border-strong)'
-                                            : '1px solid transparent',
-                                        color: isActive
-                                            ? 'var(--accent-primary)'
-                                            : 'var(--text-secondary)',
-                                        fontSize: '0.8125rem',
-                                        fontWeight: isActive ? 600 : 500,
-                                        textDecoration: 'none',
-                                        transition: 'all 150ms ease',
-                                    }}
+                                    onMouseEnter={() => preloadRoute(item.to)}
+                                    onFocus={() => preloadRoute(item.to)}
+                                    className={`vg-nav-pill ${isActive ? 'is-active' : ''}`}
                                 >
                                     <Icon size={14} />
                                     <span>{item.label}</span>
@@ -156,33 +106,34 @@ export default function AppShell({ children }) {
                     </nav>
                 </div>
 
-                {/* Right Segment: Track Depth Switcher, Session Badge & Theme Toggle */}
+                {/* Right Segment: Kid/Simple vs Engineer Explanation Switcher, Session & Theme */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    {/* Curriculum Depth Selector */}
+                    {/* Kid-Friendly Simple Mode vs Engineering Mode Switcher */}
                     <div className="hidden sm:flex" style={{ alignItems: 'center' }}>
-                        <div className="vg-segmented" role="group" aria-label="Curriculum depth">
+                        <div
+                            className="vg-segmented"
+                            role="group"
+                            aria-label="Explanation complexity mode"
+                            title="Switch between Simple (Kid-Friendly) and Engineering explanations across the website"
+                        >
                             <button
                                 type="button"
-                                className={`vg-segmented-btn ${audienceTrack === 'foundation' ? 'active' : ''}`}
+                                className={`vg-segmented-btn ${
+                                    audienceTrack === 'foundation' ? 'active' : ''
+                                }`}
                                 onClick={() => setAudienceTrack('foundation')}
                             >
-                                Foundation
+                                <Sparkles size={12} />
+                                Simple Mode
                             </button>
                             <button
                                 type="button"
-                                className={`vg-segmented-btn ${audienceTrack === 'engineering' ? 'active' : ''}`}
-                                onClick={() => {
-                                    if (!capabilities.allowEngineeringDepth) {
-                                        navigate('/login?reason=engineering_track');
-                                    } else {
-                                        setAudienceTrack('engineering');
-                                    }
-                                }}
+                                className={`vg-segmented-btn ${
+                                    audienceTrack === 'engineering' ? 'active' : ''
+                                }`}
+                                onClick={() => setAudienceTrack('engineering')}
                             >
-                                {!capabilities.allowEngineeringDepth && (
-                                    <Lock size={11} style={{ marginRight: '4px', verticalAlign: '-1px' }} />
-                                )}
-                                Engineering
+                                Engineer Mode
                             </button>
                         </div>
                     </div>
@@ -191,16 +142,10 @@ export default function AppShell({ children }) {
                     <Link
                         to="/login"
                         title={`Hardware Fingerprint: ${deviceFingerprint}`}
-                        className="hidden lg:flex"
+                        className="hidden lg:flex vg-nav-pill"
                         style={{
-                            alignItems: 'center',
-                            gap: '8px',
-                            height: '36px',
-                            padding: '0 14px',
-                            borderRadius: 'var(--radius-pill)',
                             background: 'var(--bg-subtle)',
                             border: '1px solid var(--border-subtle)',
-                            textDecoration: 'none',
                             color: 'var(--text-primary)',
                             fontSize: '0.75rem',
                             fontWeight: 500,
@@ -267,12 +212,46 @@ export default function AppShell({ children }) {
                         gap: '8px',
                     }}
                 >
+                    <div
+                        style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            paddingBottom: '6px',
+                        }}
+                    >
+                        <span className="mono" style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                            EXPLANATION LEVEL
+                        </span>
+                        <div className="vg-segmented">
+                            <button
+                                type="button"
+                                className={`vg-segmented-btn ${
+                                    audienceTrack === 'foundation' ? 'active' : ''
+                                }`}
+                                onClick={() => setAudienceTrack('foundation')}
+                            >
+                                Simple Mode
+                            </button>
+                            <button
+                                type="button"
+                                className={`vg-segmented-btn ${
+                                    audienceTrack === 'engineering' ? 'active' : ''
+                                }`}
+                                onClick={() => setAudienceTrack('engineering')}
+                            >
+                                Engineer Mode
+                            </button>
+                        </div>
+                    </div>
+
                     {NAV_ITEMS.map((item) => {
                         const Icon = item.icon;
                         return (
                             <Link
                                 key={item.to}
                                 to={item.to}
+                                onMouseEnter={() => preloadRoute(item.to)}
                                 onClick={() => setMobileOpen(false)}
                                 style={{
                                     display: 'flex',
@@ -281,7 +260,7 @@ export default function AppShell({ children }) {
                                     padding: '10px 14px',
                                     borderRadius: 'var(--radius-sm)',
                                     fontSize: '0.875rem',
-                                    fontWeight: 500,
+                                    fontWeight: 600,
                                     color: 'var(--text-primary)',
                                     textDecoration: 'none',
                                     background: 'var(--bg-subtle)',

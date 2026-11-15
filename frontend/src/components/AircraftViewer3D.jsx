@@ -13,18 +13,22 @@ import { computeNACA4Digit } from '../domain/nacaGeometry';
 //   Highlighted NACA Airfoil Rib, Swept Airfoil Empennage, and Contoured Turbofans.
 // ============================================================================
 
-function SmoothCameraRig({ targetPosition, targetLookAt, controlsRef, isTransitioningRef }) {
+function SmoothCameraRig({ targetPosition, targetLookAt, activeZone, controlsRef, isTransitioningRef }) {
   const { camera } = useThree();
   const desiredPos = useRef(new THREE.Vector3(...targetPosition));
   const desiredLook = useRef(new THREE.Vector3(...targetLookAt));
   const transitionFrames = useRef(0);
 
   useEffect(() => {
+    if (!activeZone) {
+      isTransitioningRef.current = false;
+      return;
+    }
     desiredPos.current.set(...targetPosition);
     desiredLook.current.set(...targetLookAt);
     isTransitioningRef.current = true;
     transitionFrames.current = 0;
-  }, [targetPosition, targetLookAt, isTransitioningRef]);
+  }, [activeZone, targetPosition, targetLookAt, isTransitioningRef]);
 
   useFrame((_, delta) => {
     if (!isTransitioningRef.current) return;
@@ -503,7 +507,7 @@ export function ArticulatedAircraftMesh({
   const bindZoneEvents = (zone) => ({
     onClick: (e) => {
       e.stopPropagation();
-      if (onSelectZone) onSelectZone(zone);
+      if (onSelectZone) onSelectZone(selectedZone === zone ? null : zone);
     },
     onPointerOver: (e) => {
       e.stopPropagation();
@@ -1090,7 +1094,12 @@ export default function AircraftViewer3D({
   const isTransitioningRef = useRef(false);
   const [internalHover, setInternalHover] = React.useState(null);
 
-  const activeZone = selectedZone || selectedSubsystem || 'wings';
+  const activeZone =
+    selectedZone !== null
+      ? selectedZone
+      : selectedSubsystem !== undefined
+      ? selectedSubsystem
+      : null;
   const hoveredZone = externalHoveredZone ?? internalHover;
   const handleSelect = onSelectZone || onSelectSubsystem || (() => {});
   const handleHover = onHoverZone || setInternalHover;
@@ -1137,6 +1146,10 @@ export default function AircraftViewer3D({
         dpr={[1, 1.5]}
         camera={{ position: effectiveCamPos, fov: 42, near: 0.1, far: 100 }}
         gl={{ powerPreference: 'high-performance', antialias: true }}
+        onPointerMissed={() => {
+          isTransitioningRef.current = false;
+          handleSelect(null);
+        }}
       >
         <ambientLight intensity={0.95} />
         <directionalLight position={[8, 12, 8]} intensity={1.55} />
@@ -1197,6 +1210,7 @@ export default function AircraftViewer3D({
         <SmoothCameraRig
           targetPosition={effectiveCamPos}
           targetLookAt={effectiveCamTarget}
+          activeZone={activeZone}
           controlsRef={controlsRef}
           isTransitioningRef={isTransitioningRef}
         />

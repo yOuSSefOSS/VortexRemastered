@@ -125,12 +125,23 @@ export default function Explorer() {
   };
 
   const handleSelectSubsystem = (id) => {
+    if (!id) {
+      setSelectedId(null);
+      setDrawerOpen(false);
+      return;
+    }
     const sub = getSubsystemById(id);
     if (!sub) return;
 
     if (!canAccessSubsystem(id)) {
       setLockedTargetName(sub.name);
       setAccessModalOpen(true);
+      return;
+    }
+
+    if (selectedId === id && drawerOpen) {
+      setSelectedId(null);
+      setDrawerOpen(false);
       return;
     }
 
@@ -545,6 +556,17 @@ export default function Explorer() {
                 overflowX: 'auto',
               }}
             >
+              <button
+                type="button"
+                onClick={() => handleSelectSubsystem(null)}
+                className={`btn btn-sm ${
+                  selectedId === null ? 'btn-primary' : 'btn-secondary'
+                }`}
+                title="Unlock camera to move and orbit freely around the airliner"
+              >
+                <Move3d size={13} />
+                Free Orbit
+              </button>
               {HANGAR_SUBSYSTEMS.map((sub) => {
                 const unlocked = canAccessSubsystem(sub.id);
                 const isSelected = selectedId === sub.id && drawerOpen;
@@ -668,6 +690,35 @@ export default function Explorer() {
                 <h3 style={{ fontSize: '1.1rem', fontWeight: 700, margin: '0 0 8px 0', color: 'var(--text-primary)' }}>
                   {activeF16Part.name}
                 </h3>
+
+                {activeF16Part.kidExplanation && (
+                  <div
+                    style={{
+                      padding: '10px 12px',
+                      borderRadius: 'var(--radius-sm)',
+                      background: 'var(--status-success-subtle)',
+                      border: '1px solid rgba(34, 197, 94, 0.35)',
+                      marginBottom: '10px',
+                      fontSize: '0.8125rem',
+                      lineHeight: 1.55,
+                      color: 'var(--text-primary)',
+                    }}
+                  >
+                    <div
+                      className="mono"
+                      style={{
+                        fontSize: '10px',
+                        fontWeight: 700,
+                        color: 'var(--status-success)',
+                        marginBottom: '3px',
+                        letterSpacing: '0.08em',
+                      }}
+                    >
+                      💡 HOW IT WORKS (SIMPLE EXPLANATION)
+                    </div>
+                    {activeF16Part.kidExplanation}
+                  </div>
+                )}
 
                 <p
                   style={{
@@ -793,6 +844,7 @@ export default function Explorer() {
                     key={part.id}
                     type="button"
                     onClick={() => handleSelectF16Part(isSelected ? null : part.id)}
+                    className="vg-part-row"
                     style={{
                       display: 'flex',
                       alignItems: 'center',
@@ -808,7 +860,6 @@ export default function Explorer() {
                       color: 'var(--text-primary)',
                       cursor: 'pointer',
                       textAlign: 'left',
-                      transition: 'all 140ms ease',
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>

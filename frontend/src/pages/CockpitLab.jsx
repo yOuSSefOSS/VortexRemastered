@@ -781,7 +781,7 @@ export default function CockpitLab() {
                             ) : (
                                 <AircraftViewer3D
                                     subject="aircraft"
-                                    selectedSubsystem="wings"
+                                    selectedSubsystem={null}
                                     rigState={rigStateFor3D}
                                     showVectors
                                 />

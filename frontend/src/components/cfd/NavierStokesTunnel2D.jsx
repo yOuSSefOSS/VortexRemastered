@@ -109,7 +109,22 @@ export default function NavierStokesTunnel2D({
   cl = 0.68,
   cd = 0.014,
 }) {
+  const containerRef = useRef(null);
   const canvasRef = useRef(null);
+  const isInViewRef = useRef(true);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el || typeof IntersectionObserver === 'undefined') return undefined;
+    const obs = new IntersectionObserver(
+      ([entry]) => {
+        isInViewRef.current = entry.isIntersecting;
+      },
+      { threshold: 0.04 }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
 
   // Visualization & solver controls
   const [visMode, setVisMode] = useState('smoke_vel');
@@ -454,6 +469,10 @@ export default function NavierStokesTunnel2D({
     };
 
     const renderFrame = () => {
+      if (!isInViewRef.current) {
+        animId = requestAnimationFrame(renderFrame);
+        return;
+      }
       if (!paused) {
         stepFluid();
         stepFluid();
@@ -867,6 +886,7 @@ export default function NavierStokesTunnel2D({
 
   return (
     <div
+      ref={containerRef}
       style={{
         display: 'flex',
         flexDirection: 'column',
